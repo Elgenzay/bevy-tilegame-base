@@ -1,3 +1,6 @@
+use core::panic;
+
+use bevy::utils::hashbrown::HashMap;
 use bevy::{input::Input, math::Vec3, render::camera::Camera};
 use bevy::{prelude::*, render::camera::RenderTarget};
 use bevy_ecs_tilemap::{
@@ -5,6 +8,22 @@ use bevy_ecs_tilemap::{
 	tiles::{TileBundle, TilePos},
 	TilemapBundle, TilemapPlugin,
 };
+
+const WINDOW_DEFAULT_WIDTH: f32 = 1280.0;
+const WINDOW_DEFAULT_HEIGHT: f32 = 720.0;
+
+const CHUNK_SIZE: UVec2 = UVec2 { x: 4, y: 4 };
+const TILE_SIZE: TilemapTileSize = TilemapTileSize { x: 16.0, y: 16.0 };
+
+const PLAYER_SIZE: UVec2 = UVec2 { x: 24, y: 24 };
+const PLAYER_ACCEL: f32 = 1000.0;
+const PLAYER_SPEED: f32 = 100.0;
+const PLAYER_JUMP_FORCE: f32 = 200.0;
+const GROUND_FRICTION: f32 = 10.0;
+const AIR_FRICTION: f32 = 10.0;
+const AIR_CONTROL: f32 = 0.2;
+const GRAVITY_SCALE: f32 = 400.0;
+const TERMINAL_VELOCITY: f32 = 500.0;
 
 #[derive(Component)]
 struct Cursor;
@@ -20,6 +39,12 @@ struct Collider;
 #[derive(Component)]
 struct Chunk;
 
+#[derive(Component, Deref, DerefMut)]
+struct Gravity(f32);
+
+#[derive(Component, Deref, DerefMut)]
+struct Velocity(Vec2);
+
 #[derive(Component)]
 struct Region {
 	top: f32,
@@ -27,12 +52,6 @@ struct Region {
 	bottom: f32,
 	right: f32,
 }
-
-#[derive(Component, Deref, DerefMut)]
-struct Gravity(f32);
-
-#[derive(Component, Deref, DerefMut)]
-struct Velocity(Vec2);
 
 impl Region {
 	fn from_size(position: &Vec2, size: &Vec2) -> Region {
@@ -54,21 +73,138 @@ impl Region {
 	}
 }
 
-const WINDOW_DEFAULT_WIDTH: f32 = 1280.0;
-const WINDOW_DEFAULT_HEIGHT: f32 = 720.0;
+#[derive(Resource)]
+struct Map(HashMap<(i32, i32), MapChunk>);
 
-const CHUNK_SIZE: UVec2 = UVec2 { x: 4, y: 4 };
-const TILE_SIZE: TilemapTileSize = TilemapTileSize { x: 16.0, y: 16.0 };
+impl Map {
+	fn get_tile(&self, coord: Coordinate) -> Option<&Tile> {
+		let chunk_coord = coord.as_chunk();
+		if let Some(map_chunk) = self.0.get(&(chunk_coord.x_i32(), chunk_coord.y_i32())) {
+			let tile_coord = coord.as_tile();
+			let x_rem = match tile_coord.x_i32().checked_rem(CHUNK_SIZE.x as i32) {
+				Some(v) => v.abs(),
+				None => 0,
+			};
+			let y_rem = match tile_coord.y_i32().checked_rem(CHUNK_SIZE.y as i32) {
+				Some(v) => v.abs(),
+				None => 0,
+			};
+			if let Some(tile) = map_chunk.tiles.get(&(x_rem, y_rem)) {
+				return Some(tile);
+			}
+		}
+		None
+	}
+}
 
-const PLAYER_SIZE: UVec2 = UVec2 { x: 24, y: 24 };
-const PLAYER_ACCEL: f32 = 1000.0;
-const PLAYER_SPEED: f32 = 100.0;
-const PLAYER_JUMP_FORCE: f32 = 200.0;
-const GROUND_FRICTION: f32 = 10.0;
-const AIR_FRICTION: f32 = 10.0;
-const AIR_CONTROL: f32 = 0.2;
-const GRAVITY_SCALE: f32 = 400.0;
-const TERMINAL_VELOCITY: f32 = 500.0;
+struct MapChunk {
+	tilemap_entity: Entity,
+	tiles: HashMap<(i32, i32), Tile>,
+}
+
+impl MapChunk {
+	fn from_tilemap(chunk_entity: Entity) -> MapChunk {
+		MapChunk {
+			tilemap_entity: chunk_entity,
+			tiles: HashMap::new(),
+		}
+	}
+}
+
+enum TileType {
+	Generic,
+}
+
+struct Tile {
+	tile_type: TileType,
+}
+
+impl Tile {
+	fn friendly_name(&self) -> String {
+		match self.tile_type {
+			TileType::Generic => "Generic".to_owned(),
+		}
+	}
+}
+
+#[derive(Clone, Copy)]
+enum Coordinate {
+	World { x: f32, y: f32 },
+	Tile { x: i32, y: i32 },
+	Chunk { x: i32, y: i32 },
+}
+
+impl Coordinate {
+	fn x_i32(&self) -> i32 {
+		match self {
+			Coordinate::World { x, y: _ } => *x as i32,
+			Coordinate::Tile { x, y: _ } => *x,
+			Coordinate::Chunk { x, y: _ } => *x,
+		}
+	}
+
+	fn y_i32(&self) -> i32 {
+		match self {
+			Coordinate::World { x: _, y } => *y as i32,
+			Coordinate::Tile { x: _, y } => *y,
+			Coordinate::Chunk { x: _, y } => *y,
+		}
+	}
+
+	fn x_f32(&self) -> f32 {
+		match self {
+			Coordinate::World { x, y: _ } => *x,
+			Coordinate::Tile { x, y: _ } => *x as f32,
+			Coordinate::Chunk { x, y: _ } => *x as f32,
+		}
+	}
+
+	fn y_f32(&self) -> f32 {
+		match self {
+			Coordinate::World { x: _, y } => *y,
+			Coordinate::Tile { x: _, y } => *y as f32,
+			Coordinate::Chunk { x: _, y } => *y as f32,
+		}
+	}
+
+	fn from_vec2(v: Vec2) -> Coordinate {
+		Coordinate::World { x: v.x, y: v.y }
+	}
+
+	fn as_tile(&self) -> Coordinate {
+		match self {
+			Coordinate::World { x, y } => Coordinate::Tile {
+				x: ((x - (TILE_SIZE.x * 0.5)) / TILE_SIZE.x).ceil() as i32,
+				y: ((y - (TILE_SIZE.y * 0.5)) / TILE_SIZE.y).ceil() as i32,
+			},
+			Coordinate::Chunk { x: _, y: _ } => {
+				panic!("Tried to convert chunk coordinate to tile coordinate")
+			}
+			Coordinate::Tile { x: _, y: _ } => *self,
+		}
+	}
+
+	fn as_chunk(&self) -> Coordinate {
+		let chunksize_x_f32 = CHUNK_SIZE.x as f32;
+		let chunksize_y_f32 = CHUNK_SIZE.y as f32;
+		match self {
+			Coordinate::Tile { x, y } => Coordinate::Chunk {
+				x: (((*x as f32 - 1.0) - (chunksize_x_f32 * 0.5)) / chunksize_x_f32).ceil() as i32,
+				y: (((*y as f32 - 1.0) - (chunksize_y_f32 * 0.5)) / chunksize_y_f32).ceil() as i32,
+			},
+			Coordinate::World { x: _, y: _ } => {
+				let tile_coord = &self.as_tile();
+				Coordinate::Chunk {
+					x: (((tile_coord.x_f32() - 1.0) - (chunksize_x_f32 * 0.5)) / chunksize_x_f32)
+						.ceil() as i32,
+					y: (((tile_coord.y_f32() - 1.0) - (chunksize_y_f32 * 0.5)) / chunksize_y_f32)
+						.ceil() as i32,
+				}
+			}
+			Coordinate::Chunk { x: _, y: _ } => *self,
+		}
+	}
+}
 
 fn main() {
 	App::new()
@@ -92,10 +228,16 @@ fn main() {
 		.add_system(apply_velocity)
 		.add_system(apply_gravity)
 		.add_system(move_player)
+		.insert_resource(Map(HashMap::new()))
 		.run();
 }
 
-fn startup(mut commands: Commands, mut windows: ResMut<Windows>, asset_server: Res<AssetServer>) {
+fn startup(
+	mut commands: Commands,
+	mut windows: ResMut<Windows>,
+	asset_server: Res<AssetServer>,
+	mut map: ResMut<Map>,
+) {
 	commands.spawn(Camera2dBundle::default());
 
 	commands.spawn((
@@ -124,13 +266,18 @@ fn startup(mut commands: Commands, mut windows: ResMut<Windows>, asset_server: R
 		Player { on_ground: false },
 	));
 
-	spawn_chunk(&mut commands, &asset_server, IVec2::new(0, -2));
+	spawn_chunk(&mut commands, &asset_server, IVec2::new(0, 1), &mut map);
+	spawn_chunk(&mut commands, &asset_server, IVec2::new(0, -2), &mut map);
 }
 
 fn mouse_events_system(
 	wnds: Res<Windows>,
 	q_camera: Query<(&Camera, &GlobalTransform), With<Camera>>,
 	mut query: Query<&mut Transform, With<Cursor>>,
+	mut map: ResMut<Map>,
+	input: Res<Input<MouseButton>>,
+	mut commands: Commands,
+	asset_server: Res<AssetServer>,
 ) {
 	let (camera, camera_transform) = q_camera.single();
 	let wnd = if let RenderTarget::Window(id) = camera.target {
@@ -144,16 +291,22 @@ fn mouse_events_system(
 		let ndc_to_world = camera_transform.compute_matrix() * camera.projection_matrix().inverse();
 		let world_pos = ndc_to_world.project_point3(ndc.extend(-1.0));
 		let world_pos: Vec2 = world_pos.truncate();
-		let cursorlocation = Vec3::new(world_pos.x.floor(), world_pos.y.floor(), 0.0);
+		let cursorlocation = Vec3::new(world_pos.x.floor(), world_pos.y.floor(), 1.0);
 		if query.single_mut().translation != cursorlocation {
 			query.single_mut().translation = cursorlocation;
-			/*
-			eprintln!(
-				"({},{})",
-				cursorlocation.x.to_string(),
-				cursorlocation.y.to_string()
-			);
-			*/
+			let world_coord = Coordinate::from_vec2(world_pos);
+			let tile = map.get_tile(world_coord);
+			if let Some(_) = tile {
+				let t_coord = world_coord.as_tile();
+				println!(
+					"({},{})",
+					t_coord.x_i32().to_string(),
+					t_coord.y_i32().to_string()
+				);
+			}
+		}
+		if input.just_pressed(MouseButton::Left) {
+			//todo
 		}
 	}
 }
@@ -312,25 +465,33 @@ fn move_player(
 	if velocity.x > 0.0 {
 		velocity.x -= AIR_FRICTION * time.delta_seconds();
 	} else if velocity.x < 0.0 {
-		velocity.x -= AIR_FRICTION * time.delta_seconds();
+		velocity.x += AIR_FRICTION * time.delta_seconds();
 	}
 	if direction != 0.0 {
 		velocity.x += direction * PLAYER_ACCEL * AIR_CONTROL * time.delta_seconds();
 	}
 }
 
-fn spawn_chunk(commands: &mut Commands, asset_server: &AssetServer, chunk_pos: IVec2) -> Entity {
+fn spawn_chunk(
+	commands: &mut Commands,
+	asset_server: &AssetServer,
+	chunk_pos: IVec2,
+	map: &mut Map,
+) -> Entity {
 	let tilemap_entity = commands.spawn_empty().id();
 	let mut tile_storage = TileStorage::empty(CHUNK_SIZE.into());
+	let mut mapchunk_tiles = HashMap::new();
+	//let existing_chunk = map.0.get(&(chunk_pos.x, chunk_pos.y));
 	for x in 0..CHUNK_SIZE.x {
 		for y in 0..CHUNK_SIZE.y {
 			//////////////////////
-			if x == 1 || x == 2 {
-				if y != 0 {
-					continue;
-				}
-			}
+			//	if x == 1 || x == 2 {
+			//		if y != 0 {
+			//			continue;
+			//		}
+			//	}
 			//////////////////////
+
 			let tile_pos = TilePos { x, y };
 			let tile_entity = commands
 				.spawn((
@@ -355,6 +516,12 @@ fn spawn_chunk(commands: &mut Commands, asset_server: &AssetServer, chunk_pos: I
 				.id();
 			commands.entity(tilemap_entity).add_child(tile_entity);
 			tile_storage.set(&tile_pos, tile_entity);
+			mapchunk_tiles.insert(
+				(x as i32, y as i32),
+				Tile {
+					tile_type: TileType::Generic,
+				},
+			);
 		}
 	}
 
@@ -386,5 +553,15 @@ fn spawn_chunk(commands: &mut Commands, asset_server: &AssetServer, chunk_pos: I
 			),
 		),
 	));
+	if let Some(v) = map.0.get(&(chunk_pos.x, chunk_pos.y)) {
+		commands.entity(v.tilemap_entity).despawn_recursive();
+	}
+	map.0.insert(
+		(chunk_pos.x, chunk_pos.y),
+		MapChunk {
+			tilemap_entity,
+			tiles: mapchunk_tiles,
+		},
+	);
 	tilemap_entity
 }
