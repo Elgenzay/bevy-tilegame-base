@@ -1,7 +1,8 @@
 use bevy::{
 	prelude::{
 		App, AssetServer, BuildChildren, Children, Commands, Component, DespawnRecursiveExt,
-		Entity, Handle, IVec2, Image, Plugin, Query, Resource, Transform, Vec2, Vec3, With,
+		Entity, EventReader, Handle, IVec2, Image, Plugin, Query, ResMut, Resource, Transform,
+		Vec2, Vec3, With,
 	},
 	utils::hashbrown::HashMap,
 };
@@ -17,7 +18,9 @@ pub struct Grid;
 
 impl Plugin for Grid {
 	fn build(&self, app: &mut App) {
-		app.insert_resource(Map(HashMap::new()));
+		app.insert_resource(Map(HashMap::new()))
+			.add_event::<DestroyTileEvent>()
+			.add_system(destroy_tile);
 	}
 }
 
@@ -59,16 +62,11 @@ impl Map {
 	pub fn get_tile(&self, coord: Coordinate) -> Option<&Tile> {
 		let chunk_coord = coord.as_chunk();
 		if let Some(map_chunk) = self.0.get(&(chunk_coord.x_i32(), chunk_coord.y_i32())) {
-			let tile_coord = coord.as_tile();
-			let x_rem = match tile_coord.x_i32().checked_rem(CHUNK_SIZE.x as i32) {
-				Some(v) => v.abs(),
-				None => 0,
-			};
-			let y_rem = match tile_coord.y_i32().checked_rem(CHUNK_SIZE.y as i32) {
-				Some(v) => v.abs(),
-				None => 0,
-			};
-			if let Some(tile) = map_chunk.tiles.get(&(x_rem, y_rem)) {
+			let local_coord = coord.as_chunklocal();
+			if let Some(tile) = map_chunk
+				.tiles
+				.get(&(local_coord.x_i32(), local_coord.y_i32()))
+			{
 				return Some(tile);
 			}
 		}
@@ -96,6 +94,7 @@ pub enum TileType {
 
 pub struct Tile {
 	tile_type: TileType,
+	entity: Entity,
 }
 
 impl Tile {
@@ -111,38 +110,43 @@ pub enum Coordinate {
 	World { x: f32, y: f32 },
 	Tile { x: i32, y: i32 },
 	Chunk { x: i32, y: i32 },
+	ChunkLocal { x: i32, y: i32 },
 }
 
 impl Coordinate {
 	pub fn x_i32(&self) -> i32 {
 		match self {
 			Coordinate::World { x, y: _ } => *x as i32,
-			Coordinate::Tile { x, y: _ } => *x,
-			Coordinate::Chunk { x, y: _ } => *x,
+			Coordinate::Tile { x, y: _ }
+			| Coordinate::Chunk { x, y: _ }
+			| Coordinate::ChunkLocal { x, y: _ } => *x,
 		}
 	}
 
 	pub fn y_i32(&self) -> i32 {
 		match self {
 			Coordinate::World { x: _, y } => *y as i32,
-			Coordinate::Tile { x: _, y } => *y,
-			Coordinate::Chunk { x: _, y } => *y,
+			Coordinate::Tile { x: _, y }
+			| Coordinate::Chunk { x: _, y }
+			| Coordinate::ChunkLocal { x: _, y } => *y,
 		}
 	}
 
 	pub fn x_f32(&self) -> f32 {
 		match self {
 			Coordinate::World { x, y: _ } => *x,
-			Coordinate::Tile { x, y: _ } => *x as f32,
-			Coordinate::Chunk { x, y: _ } => *x as f32,
+			Coordinate::Tile { x, y: _ }
+			| Coordinate::Chunk { x, y: _ }
+			| Coordinate::ChunkLocal { x, y: _ } => *x as f32,
 		}
 	}
 
 	pub fn y_f32(&self) -> f32 {
 		match self {
 			Coordinate::World { x: _, y } => *y,
-			Coordinate::Tile { x: _, y } => *y as f32,
-			Coordinate::Chunk { x: _, y } => *y as f32,
+			Coordinate::Tile { x: _, y }
+			| Coordinate::Chunk { x: _, y }
+			| Coordinate::ChunkLocal { x: _, y } => *y as f32,
 		}
 	}
 
@@ -159,6 +163,9 @@ impl Coordinate {
 			Coordinate::Chunk { x: _, y: _ } => {
 				panic!("Tried to convert chunk coordinate to tile coordinate")
 			}
+			Coordinate::ChunkLocal { x: _, y: _ } => {
+				panic!("Tried to convert chunklocal coordinate to tile coordinate")
+			}
 			Coordinate::Tile { x: _, y: _ } => *self,
 		}
 	}
@@ -172,7 +179,7 @@ impl Coordinate {
 				y: (((*y as f32 - 1.0) - (chunksize_y_f32 * 0.5)) / chunksize_y_f32).ceil() as i32,
 			},
 			Coordinate::World { x: _, y: _ } => {
-				let tile_coord = &self.as_tile();
+				let tile_coord = self.as_tile();
 				Coordinate::Chunk {
 					x: (((tile_coord.x_f32() - 1.0) - (chunksize_x_f32 * 0.5)) / chunksize_x_f32)
 						.ceil() as i32,
@@ -181,7 +188,38 @@ impl Coordinate {
 				}
 			}
 			Coordinate::Chunk { x: _, y: _ } => *self,
+			Coordinate::ChunkLocal { x: _, y: _ } => {
+				panic!("Tried to convert chunklocal coordinate to chunk coordinate")
+			}
 		}
+	}
+
+	pub fn as_chunklocal(&self) -> Coordinate {
+		let tile_coord = self.as_tile();
+		let chunk_size_x_i32 = CHUNK_SIZE.x as i32;
+		let chunk_size_y_i32 = CHUNK_SIZE.y as i32;
+		let x = match tile_coord.x_i32().checked_rem(chunk_size_x_i32) {
+			Some(v) => {
+				if v < 0 {
+					v + chunk_size_x_i32
+				} else {
+					v
+				}
+			}
+			None => 0,
+		};
+		let y = match tile_coord.y_i32().checked_rem(chunk_size_y_i32) {
+			Some(v) => {
+				if v < 0 {
+					v + chunk_size_y_i32
+				} else {
+					v
+				}
+			}
+			None => 0,
+		};
+		println!("{},{}", x.to_string(), y.to_string());
+		Coordinate::ChunkLocal { x, y }
 	}
 }
 
@@ -225,6 +263,7 @@ pub fn spawn_chunk(
 				(x as i32, y as i32),
 				Tile {
 					tile_type: TileType::Generic,
+					entity: tile_entity,
 				},
 			);
 		}
@@ -309,3 +348,24 @@ fn regions_overlap(region_1: &Region, region_2: &Region) -> bool {
 	}
 	true
 }
+
+fn destroy_tile(
+	mut ev_destroy: EventReader<DestroyTileEvent>,
+	mut map: ResMut<Map>,
+	mut commands: Commands,
+) {
+	for ev in ev_destroy.iter() {
+		let chunk_coord = ev.0.as_chunk();
+		if let Some(mapchunk) = map.0.get_mut(&(chunk_coord.x_i32(), chunk_coord.y_i32())) {
+			let local_coord = ev.0.as_chunklocal();
+			if let Some(tile) = mapchunk
+				.tiles
+				.remove(&(local_coord.x_i32(), local_coord.y_i32()))
+			{
+				commands.entity(tile.entity).despawn_recursive();
+			}
+		}
+	}
+}
+
+pub struct DestroyTileEvent(pub Coordinate);

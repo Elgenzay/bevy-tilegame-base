@@ -19,9 +19,8 @@ const PLAYER_SIZE: UVec2 = UVec2 { x: 24, y: 24 };
 const PLAYER_ACCEL: f32 = 1000.0;
 const PLAYER_SPEED: f32 = 100.0;
 const PLAYER_JUMP_FORCE: f32 = 200.0;
-const GROUND_FRICTION: f32 = 10.0;
-const AIR_FRICTION: f32 = 10.0;
-const AIR_CONTROL: f32 = 0.2;
+const AIR_FRICTION: f32 = 15.0;
+const AIR_CONTROL: f32 = 0.1;
 const GRAVITY_SCALE: f32 = 400.0;
 const TERMINAL_VELOCITY: f32 = 500.0;
 
@@ -93,4 +92,9 @@ fn startup(
 
 	spawn_chunk(&mut commands, &asset_server, IVec2::new(0, 1), &mut map);
 	spawn_chunk(&mut commands, &asset_server, IVec2::new(0, -2), &mut map);
+	spawn_chunk(&mut commands, &asset_server, IVec2::new(-2, -2), &mut map);
+	spawn_chunk(&mut commands, &asset_server, IVec2::new(-2, 0), &mut map);
+	spawn_chunk(&mut commands, &asset_server, IVec2::new(2, 2), &mut map);
+	spawn_chunk(&mut commands, &asset_server, IVec2::new(-1, -1), &mut map);
+	spawn_chunk(&mut commands, &asset_server, IVec2::new(1, 0), &mut map);
 }

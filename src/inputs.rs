@@ -1,7 +1,7 @@
 use bevy::{
 	prelude::{
-		App, AssetServer, Camera, Commands, GlobalTransform, Input, KeyCode, MouseButton, Plugin,
-		Query, Res, ResMut, Transform, Vec2, Vec3, With,
+		App, Camera, EventWriter, GlobalTransform, Input, KeyCode, MouseButton, Plugin, Query, Res,
+		ResMut, Transform, Vec2, Vec3, With,
 	},
 	render::camera::RenderTarget,
 	time::Time,
@@ -9,8 +9,8 @@ use bevy::{
 };
 
 use crate::{
-	grid::{Coordinate, Map},
-	Cursor, Player, Velocity, AIR_CONTROL, AIR_FRICTION, GROUND_FRICTION, PLAYER_ACCEL,
+	grid::{Coordinate, DestroyTileEvent, Map},
+	Cursor, Player, Velocity, AIR_CONTROL, AIR_FRICTION, PLAYER_ACCEL, PLAYER_JUMP_FORCE,
 	PLAYER_SPEED,
 };
 
@@ -26,10 +26,9 @@ fn mouse_events_system(
 	wnds: Res<Windows>,
 	q_camera: Query<(&Camera, &GlobalTransform), With<Camera>>,
 	mut query: Query<&mut Transform, With<Cursor>>,
-	mut map: ResMut<Map>,
+	map: ResMut<Map>,
 	input: Res<Input<MouseButton>>,
-	mut commands: Commands,
-	asset_server: Res<AssetServer>,
+	mut ev_destroytile: EventWriter<DestroyTileEvent>,
 ) {
 	let (camera, camera_transform) = q_camera.single();
 	let wnd = if let RenderTarget::Window(id) = camera.target {
@@ -44,21 +43,22 @@ fn mouse_events_system(
 		let world_pos = ndc_to_world.project_point3(ndc.extend(-1.0));
 		let world_pos: Vec2 = world_pos.truncate();
 		let cursorlocation = Vec3::new(world_pos.x.floor(), world_pos.y.floor(), 1.0);
+		let world_coord = Coordinate::from_vec2(world_pos);
 		if query.single_mut().translation != cursorlocation {
 			query.single_mut().translation = cursorlocation;
-			let world_coord = Coordinate::from_vec2(world_pos);
 			let tile = map.get_tile(world_coord);
 			if let Some(_) = tile {
-				let t_coord = world_coord.as_tile();
-				println!(
-					"({},{})",
-					t_coord.x_i32().to_string(),
-					t_coord.y_i32().to_string()
-				);
+				//let t_coord = world_coord.as_tile();
+				//	println!(
+				//		"({},{})",
+				//		t_coord.x_i32().to_string(),
+				//		t_coord.y_i32().to_string()
+				//	);
 			}
 		}
 		if input.just_pressed(MouseButton::Left) {
-			//todo
+			//println!("click");
+			ev_destroytile.send(DestroyTileEvent(world_coord));
 		}
 	}
 }
@@ -77,34 +77,28 @@ fn move_player(
 	}
 	let (player, mut velocity) = query.single_mut();
 	let mut jumping = false;
-	if keyboard_input.pressed(KeyCode::Up) || keyboard_input.pressed(KeyCode::W) {
+	if keyboard_input.just_pressed(KeyCode::Up) || keyboard_input.just_pressed(KeyCode::W) {
 		jumping = true;
 	};
 	if player.on_ground {
 		if jumping {
-			velocity.y = super::PLAYER_JUMP_FORCE;
+			velocity.y = PLAYER_JUMP_FORCE;
 		}
 		if direction == 0.0 {
 			velocity.x = 0.0;
 			return;
 		}
-		if velocity.x > PLAYER_SPEED {
-			velocity.x -= GROUND_FRICTION * time.delta_seconds();
-			return;
-		}
-		if velocity.x < -PLAYER_SPEED {
-			velocity.x += GROUND_FRICTION * time.delta_seconds();
-			return;
-		}
 		velocity.x += direction * PLAYER_ACCEL * time.delta_seconds();
-		return;
+	} else {
+		if direction != 0.0 {
+			velocity.x += direction * PLAYER_ACCEL * AIR_CONTROL * time.delta_seconds();
+		}
+		velocity.x = velocity.x.clamp(-PLAYER_SPEED, PLAYER_SPEED);
+		if velocity.x > 0.0 {
+			velocity.x -= AIR_FRICTION * time.delta_seconds();
+		} else if velocity.x < 0.0 {
+			velocity.x += AIR_FRICTION * time.delta_seconds();
+		}
 	}
-	if velocity.x > 0.0 {
-		velocity.x -= AIR_FRICTION * time.delta_seconds();
-	} else if velocity.x < 0.0 {
-		velocity.x += AIR_FRICTION * time.delta_seconds();
-	}
-	if direction != 0.0 {
-		velocity.x += direction * PLAYER_ACCEL * AIR_CONTROL * time.delta_seconds();
-	}
+	velocity.x = velocity.x.clamp(-PLAYER_SPEED, PLAYER_SPEED);
 }
