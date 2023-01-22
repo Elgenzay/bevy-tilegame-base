@@ -8,7 +8,7 @@ use bevy::prelude::*;
 use bevy_ecs_tilemap::{prelude::TilemapTileSize, TilemapPlugin};
 use grid::{spawn_chunk, Grid, Map};
 use inputs::Inputs;
-use physics::{Gravity, Physics, Velocity};
+use physics::{Gravity, Physics, Position, Velocity};
 use players::{LookDirection, Player, Players};
 
 const WINDOW_DEFAULT_WIDTH: f32 = 1280.0;
@@ -104,6 +104,7 @@ fn startup(
 			on_ground: false,
 			look_direction: LookDirection::Right,
 		},
+		Position(Vec3::ZERO),
 	));
 
 	spawn_chunk(&mut commands, &asset_server, IVec2::new(0, 1), &mut map);
