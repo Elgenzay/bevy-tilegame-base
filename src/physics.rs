@@ -79,12 +79,12 @@ fn apply_velocity(
 }
 
 fn apply_gravity(
-	mut query: Query<(&Gravity, &mut Velocity, &Transform, &mut Player)>,
+	mut query: Query<(&Gravity, &mut Velocity, &mut Transform, &mut Player)>,
 	time: Res<Time>,
 	q_colliders: Query<&Region, With<Collider>>,
 	q_chunks: Query<(&Region, &Children), With<Chunk>>,
 ) {
-	for (gravity, mut velocity, transform, mut player) in &mut query {
+	for (gravity, mut velocity, mut transform, mut player) in &mut query {
 		let floor_check = Region::from_size(
 			&Vec2::new(
 				transform.translation.x - (PLAYER_SIZE.x as f32 * 0.5),
@@ -93,12 +93,24 @@ fn apply_gravity(
 			&PLAYER_SIZE.as_vec2(),
 		)
 		.moved(&Vec2::new(0.0, -1.0));
-		if velocity.y <= 0.0 && region_collides(&floor_check, &q_colliders, &q_chunks) {
+		let new_on_ground = region_collides(&floor_check, &q_colliders, &q_chunks);
+		if velocity.y <= 0.0 && new_on_ground {
 			player.on_ground = true;
 			if velocity.y < 0.0 {
 				velocity.y = 0.0;
 			}
 			continue;
+		}
+		if !new_on_ground && player.on_ground {
+			if region_collides(
+				&floor_check.moved(&Vec2::new(0.0, -TILE_SIZE.y)),
+				&q_colliders,
+				&q_chunks,
+			) {
+				player.on_ground = false;
+				transform.translation.y -= TILE_SIZE.y;
+				continue;
+			}
 		}
 		player.on_ground = false;
 		if velocity.y < -TERMINAL_VELOCITY {

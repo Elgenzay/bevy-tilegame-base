@@ -25,7 +25,7 @@ pub enum LookDirection {
 
 fn move_player(
 	keyboard_input: Res<Input<KeyCode>>,
-	mut query: Query<(&Player, &mut Velocity)>,
+	mut query: Query<(&mut Player, &mut Velocity)>,
 	time: Res<Time>,
 ) {
 	let mut direction = 0.0;
@@ -35,13 +35,14 @@ fn move_player(
 	if keyboard_input.pressed(KeyCode::Right) || keyboard_input.pressed(KeyCode::D) {
 		direction += 1.0;
 	}
-	let (player, mut velocity) = query.single_mut();
+	let (mut player, mut velocity) = query.single_mut();
 	let mut jumping = false;
 	if keyboard_input.pressed(KeyCode::Up) || keyboard_input.pressed(KeyCode::W) {
 		jumping = true;
 	};
 	if player.on_ground {
 		if jumping {
+			player.on_ground = false;
 			velocity.y = PLAYER_JUMP_FORCE;
 		}
 		if direction == 0.0 {
