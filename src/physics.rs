@@ -7,7 +7,7 @@ use bevy::{
 
 use crate::{
 	grid::{region_collides, Chunk, Region},
-	Player, PLAYER_SIZE, TERMINAL_VELOCITY,
+	Player, PLAYER_SIZE, TERMINAL_VELOCITY, TILE_SIZE,
 };
 
 pub struct Physics;
@@ -31,9 +31,9 @@ fn apply_velocity(
 	time: Res<Time>,
 	q_colliders: Query<&Region, With<Collider>>,
 	q_chunks: Query<(&Region, &Children), With<Chunk>>,
-	mut player_query: Query<(&mut Transform, &mut Velocity), With<Player>>,
+	mut player_query: Query<(&mut Transform, &mut Velocity, &Player)>,
 ) {
-	for (mut player_transform, mut player_velocity) in &mut player_query {
+	for (mut player_transform, mut player_velocity, player) in &mut player_query {
 		if player_velocity.x == 0.0 && player_velocity.y == 0.0 {
 			continue;
 		}
@@ -53,19 +53,24 @@ fn apply_velocity(
 		if !region_collides(&new_player_region, &q_colliders, &q_chunks) {
 			player_transform.translation = new_pos;
 		} else if player_velocity.x != 0.0 {
-			player_velocity.x = 0.0;
-			let new_player_region = Region::from_size(
-				&Vec2::new(
-					player_transform.translation.x - (PLAYER_SIZE.x as f32 * 0.5),
-					player_transform.translation.y - (PLAYER_SIZE.y as f32 * 0.5),
-				),
-				&PLAYER_SIZE.as_vec2(),
-			)
-			.moved(&Vec2::new(0.0, delta_y));
-			if !region_collides(&new_player_region, &q_colliders, &q_chunks) {
-				player_transform.translation.y += delta_y;
+			let step_up_region = new_player_region.moved(&Vec2::new(0.0, TILE_SIZE.y));
+			if player.on_ground && !region_collides(&step_up_region, &q_colliders, &q_chunks) {
+				player_transform.translation = Vec3::new(new_pos.x, new_pos.y + TILE_SIZE.y, 0.0);
 			} else {
-				player_velocity.y = 0.0;
+				player_velocity.x = 0.0;
+				let new_player_region = Region::from_size(
+					&Vec2::new(
+						player_transform.translation.x - (PLAYER_SIZE.x as f32 * 0.5),
+						player_transform.translation.y - (PLAYER_SIZE.y as f32 * 0.5),
+					),
+					&PLAYER_SIZE.as_vec2(),
+				)
+				.moved(&Vec2::new(0.0, delta_y));
+				if !region_collides(&new_player_region, &q_colliders, &q_chunks) {
+					player_transform.translation.y += delta_y;
+				} else {
+					player_velocity.y = 0.0;
+				}
 			}
 		} else {
 			player_velocity.y = 0.0;

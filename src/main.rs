@@ -113,4 +113,11 @@ fn startup(
 	spawn_chunk(&mut commands, &asset_server, IVec2::new(2, 2), &mut map);
 	spawn_chunk(&mut commands, &asset_server, IVec2::new(-1, -1), &mut map);
 	spawn_chunk(&mut commands, &asset_server, IVec2::new(1, 0), &mut map);
+
+	spawn_chunk(&mut commands, &asset_server, IVec2::new(-3, 0), &mut map);
+	spawn_chunk(&mut commands, &asset_server, IVec2::new(-3, 1), &mut map);
+	spawn_chunk(&mut commands, &asset_server, IVec2::new(-3, 2), &mut map);
+	spawn_chunk(&mut commands, &asset_server, IVec2::new(-4, 0), &mut map);
+	spawn_chunk(&mut commands, &asset_server, IVec2::new(-4, 1), &mut map);
+	spawn_chunk(&mut commands, &asset_server, IVec2::new(-4, 2), &mut map);
 }
