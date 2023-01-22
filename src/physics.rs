@@ -88,7 +88,7 @@ fn apply_gravity(
 			&PLAYER_SIZE.as_vec2(),
 		)
 		.moved(&Vec2::new(0.0, -1.0));
-		if region_collides(&floor_check, &q_colliders, &q_chunks) {
+		if velocity.y <= 0.0 && region_collides(&floor_check, &q_colliders, &q_chunks) {
 			player.on_ground = true;
 			if velocity.y < 0.0 {
 				velocity.y = 0.0;

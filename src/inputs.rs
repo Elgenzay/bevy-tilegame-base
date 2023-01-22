@@ -1,24 +1,22 @@
 use bevy::{
 	prelude::{
-		App, Camera, EventWriter, GlobalTransform, Input, KeyCode, MouseButton, Plugin, Query, Res,
-		ResMut, Transform, Vec2, Vec3, With,
+		App, Camera, EventWriter, GlobalTransform, Input, MouseButton, Plugin, Query, Res, ResMut,
+		Transform, Vec2, Vec3, With,
 	},
 	render::camera::RenderTarget,
-	time::Time,
 	window::Windows,
 };
 
 use crate::{
 	grid::{Coordinate, DestroyTileEvent, Map},
-	Cursor, Player, Velocity, AIR_CONTROL, AIR_FRICTION, PLAYER_ACCEL, PLAYER_JUMP_FORCE,
-	PLAYER_SPEED,
+	Cursor,
 };
 
 pub struct Inputs;
 
 impl Plugin for Inputs {
 	fn build(&self, app: &mut App) {
-		app.add_system(mouse_events_system).add_system(move_player);
+		app.add_system(mouse_events_system);
 	}
 }
 
@@ -61,44 +59,4 @@ fn mouse_events_system(
 			ev_destroytile.send(DestroyTileEvent(world_coord));
 		}
 	}
-}
-
-fn move_player(
-	keyboard_input: Res<Input<KeyCode>>,
-	mut query: Query<(&Player, &mut Velocity)>,
-	time: Res<Time>,
-) {
-	let mut direction = 0.0;
-	if keyboard_input.pressed(KeyCode::Left) || keyboard_input.pressed(KeyCode::A) {
-		direction -= 1.0;
-	}
-	if keyboard_input.pressed(KeyCode::Right) || keyboard_input.pressed(KeyCode::D) {
-		direction += 1.0;
-	}
-	let (player, mut velocity) = query.single_mut();
-	let mut jumping = false;
-	if keyboard_input.just_pressed(KeyCode::Up) || keyboard_input.just_pressed(KeyCode::W) {
-		jumping = true;
-	};
-	if player.on_ground {
-		if jumping {
-			velocity.y = PLAYER_JUMP_FORCE;
-		}
-		if direction == 0.0 {
-			velocity.x = 0.0;
-			return;
-		}
-		velocity.x += direction * PLAYER_ACCEL * time.delta_seconds();
-	} else {
-		if direction != 0.0 {
-			velocity.x += direction * PLAYER_ACCEL * AIR_CONTROL * time.delta_seconds();
-		}
-		velocity.x = velocity.x.clamp(-PLAYER_SPEED, PLAYER_SPEED);
-		if velocity.x > 0.0 {
-			velocity.x -= AIR_FRICTION * time.delta_seconds();
-		} else if velocity.x < 0.0 {
-			velocity.x += AIR_FRICTION * time.delta_seconds();
-		}
-	}
-	velocity.x = velocity.x.clamp(-PLAYER_SPEED, PLAYER_SPEED);
 }

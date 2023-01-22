@@ -218,7 +218,6 @@ impl Coordinate {
 			}
 			None => 0,
 		};
-		println!("{},{}", x.to_string(), y.to_string());
 		Coordinate::ChunkLocal { x, y }
 	}
 }

@@ -1,6 +1,7 @@
 mod grid;
 mod inputs;
 mod physics;
+mod players;
 
 use bevy::math::Vec3;
 use bevy::prelude::*;
@@ -8,6 +9,7 @@ use bevy_ecs_tilemap::{prelude::TilemapTileSize, TilemapPlugin};
 use grid::{spawn_chunk, Grid, Map};
 use inputs::Inputs;
 use physics::{Gravity, Physics, Velocity};
+use players::{LookDirection, Player, Players};
 
 const WINDOW_DEFAULT_WIDTH: f32 = 1280.0;
 const WINDOW_DEFAULT_HEIGHT: f32 = 720.0;
@@ -24,13 +26,23 @@ const AIR_CONTROL: f32 = 0.1;
 const GRAVITY_SCALE: f32 = 400.0;
 const TERMINAL_VELOCITY: f32 = 500.0;
 
-#[derive(Component)]
-struct Cursor;
+#[derive(Resource)]
+struct Settings {
+	hold_to_keep_jumping: Setting,
+}
+
+struct Setting {
+	value: SettingValue,
+	label: String,
+	description: String,
+}
+
+enum SettingValue {
+	Bool(bool),
+}
 
 #[derive(Component)]
-struct Player {
-	on_ground: bool,
-}
+struct Cursor;
 
 fn main() {
 	App::new()
@@ -52,6 +64,7 @@ fn main() {
 		.add_plugin(Inputs)
 		.add_plugin(Grid)
 		.add_plugin(Physics)
+		.add_plugin(Players)
 		.add_startup_system(startup)
 		.run();
 }
@@ -87,7 +100,10 @@ fn startup(
 		},
 		Velocity(Vec2::ZERO),
 		Gravity(GRAVITY_SCALE),
-		Player { on_ground: false },
+		Player {
+			on_ground: false,
+			look_direction: LookDirection::Right,
+		},
 	));
 
 	spawn_chunk(&mut commands, &asset_server, IVec2::new(0, 1), &mut map);
