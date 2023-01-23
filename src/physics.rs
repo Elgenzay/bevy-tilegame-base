@@ -69,10 +69,24 @@ fn apply_velocity(
 	time: Res<Time>,
 	q_colliders: Query<&Region, With<Collider>>,
 	q_chunks: Query<(&Region, &Children), With<Chunk>>,
-	mut player_query: Query<(&mut Position, &mut Velocity, &OnGround), With<Player>>,
+	mut player_query: Query<(&mut Position, &mut Velocity, &mut OnGround), With<Player>>,
 ) {
-	for (mut player_position, mut player_velocity, on_ground) in &mut player_query {
+	for (mut player_position, mut player_velocity, mut on_ground) in &mut player_query {
 		if player_velocity.x == 0.0 && player_velocity.y == 0.0 {
+			continue;
+		}
+		let player_size_halved_x = PLAYER_SIZE.x as f32 * 0.5;
+		let player_size_halved_y = PLAYER_SIZE.y as f32 * 0.5;
+		let current_player_region = Region::from_size(
+			&Vec2::new(
+				player_position.0.x - player_size_halved_x,
+				player_position.0.y - player_size_halved_y,
+			),
+			&PLAYER_SIZE.as_vec2(),
+		);
+		if region_collides(&current_player_region, &q_colliders, &q_chunks) {
+			on_ground.0 = false;
+			player_velocity.y = 1.0;
 			continue;
 		}
 		let delta_y = player_velocity.y * time.delta_seconds();
@@ -82,8 +96,8 @@ fn apply_velocity(
 		);
 		let new_player_region = Region::from_size(
 			&Vec2::new(
-				new_pos.x - (PLAYER_SIZE.x as f32 * 0.5),
-				new_pos.y - (PLAYER_SIZE.y as f32 * 0.5),
+				new_pos.x - player_size_halved_x,
+				new_pos.y - player_size_halved_y,
 			),
 			&PLAYER_SIZE.as_vec2(),
 		);
@@ -95,14 +109,7 @@ fn apply_velocity(
 				player_position.0 = Vec2::new(new_pos.x, new_pos.y + TILE_SIZE.y);
 			} else {
 				player_velocity.x = 0.0;
-				let new_player_region = Region::from_size(
-					&Vec2::new(
-						player_position.0.x - (PLAYER_SIZE.x as f32 * 0.5),
-						player_position.0.y - (PLAYER_SIZE.y as f32 * 0.5),
-					),
-					&PLAYER_SIZE.as_vec2(),
-				)
-				.moved(&Vec2::new(0.0, delta_y));
+				let new_player_region = current_player_region.moved(&Vec2::new(0.0, delta_y));
 				if !region_collides(&new_player_region, &q_colliders, &q_chunks) {
 					player_position.0.y += delta_y;
 				} else {
@@ -122,16 +129,32 @@ fn apply_gravity(
 	q_chunks: Query<(&Region, &Children), With<Chunk>>,
 ) {
 	for (gravity, mut velocity, mut position, mut on_ground) in &mut query {
+		let player_size_halved_x = PLAYER_SIZE.x as f32 * 0.5;
+		let player_size_halved_y = PLAYER_SIZE.y as f32 * 0.5;
+
+		let current_player_region = Region::from_size(
+			&Vec2::new(
+				position.0.x - player_size_halved_x,
+				position.0.y - player_size_halved_y,
+			),
+			&PLAYER_SIZE.as_vec2(),
+		);
+		if region_collides(&current_player_region, &q_colliders, &q_chunks) {
+			on_ground.0 = false;
+			continue;
+		}
+
 		let floor_check = Region::from_size(
 			&Vec2::new(
-				position.0.x - (PLAYER_SIZE.x as f32 * 0.5),
-				position.0.y - (PLAYER_SIZE.y as f32 * 0.5),
+				position.0.x - player_size_halved_x,
+				position.0.y - player_size_halved_y,
 			),
 			&PLAYER_SIZE.as_vec2(),
 		)
 		.moved(&Vec2::new(0.0, -1.0));
 		let new_on_ground = region_collides(&floor_check, &q_colliders, &q_chunks);
 		if velocity.y <= 0.0 && new_on_ground {
+			//standing
 			on_ground.0 = true;
 			if velocity.y < 0.0 {
 				velocity.y = 0.0;
@@ -139,16 +162,19 @@ fn apply_gravity(
 			continue;
 		}
 		if !new_on_ground && on_ground.0 {
+			//just began falling
 			if region_collides(
 				&floor_check.moved(&Vec2::new(0.0, -TILE_SIZE.y)),
 				&q_colliders,
 				&q_chunks,
 			) {
+				//stepping down
 				on_ground.0 = false;
 				position.0.y -= TILE_SIZE.y;
 				continue;
 			}
 		}
+		//falling
 		on_ground.0 = false;
 		if velocity.y < -TERMINAL_VELOCITY {
 			continue;

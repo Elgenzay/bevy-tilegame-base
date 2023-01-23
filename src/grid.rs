@@ -35,7 +35,7 @@ pub struct Region {
 }
 
 impl Region {
-	pub fn from_size(position: &Vec2, size: &Vec2) -> Region {
+	pub fn from_size(position: &Vec2, size: &Vec2) -> Self {
 		Self {
 			top: position.y + size.y,
 			left: position.x,
@@ -44,7 +44,7 @@ impl Region {
 		}
 	}
 
-	pub fn moved(&self, movement: &Vec2) -> Region {
+	pub fn moved(&self, movement: &Vec2) -> Self {
 		Self {
 			top: self.top + movement.y,
 			bottom: self.bottom + movement.y,
