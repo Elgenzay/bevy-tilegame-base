@@ -1,6 +1,9 @@
-use crate::{Velocity, AIR_CONTROL, AIR_FRICTION, PLAYER_ACCEL, PLAYER_JUMP_FORCE, PLAYER_SPEED};
+use crate::{
+	physics::{Gravity, Position},
+	Velocity, AIR_CONTROL, AIR_FRICTION, PLAYER_ACCEL, PLAYER_JUMP_FORCE, PLAYER_SPEED,
+};
 use bevy::{
-	prelude::{App, Component, Input, KeyCode, Plugin, Query, Res},
+	prelude::{App, Bundle, Component, Plugin, Query, Res, With},
 	time::Time,
 };
 
@@ -13,53 +16,134 @@ impl Plugin for Players {
 }
 
 #[derive(Component)]
-pub struct Player {
-	pub on_ground: bool,
-	pub look_direction: LookDirection,
+pub enum Player {
+	Local,
+	Remote,
 }
 
+impl Default for Player {
+	fn default() -> Self {
+		Self::Local
+	}
+}
+
+#[derive(Component)]
 pub enum LookDirection {
 	Left,
 	Right,
 }
 
+impl Default for LookDirection {
+	fn default() -> Self {
+		Self::Right
+	}
+}
+
+#[derive(Component)]
+pub enum MoveDirection {
+	Left,
+	Right,
+	None,
+}
+
+impl Default for MoveDirection {
+	fn default() -> Self {
+		Self::None
+	}
+}
+
+#[derive(Component)]
+pub struct Jumping(pub bool);
+
+impl Default for Jumping {
+	fn default() -> Self {
+		Self(false)
+	}
+}
+
+#[derive(Component)]
+pub struct OnGround(pub bool);
+
+impl Default for OnGround {
+	fn default() -> Self {
+		Self(false)
+	}
+}
+
+#[derive(Bundle)]
+pub struct PlayerBundle {
+	pub player: Player,
+	pub velocity: Velocity,
+	pub gravity: Gravity,
+	pub on_ground: OnGround,
+	pub look_direction: LookDirection,
+	pub move_direction: MoveDirection,
+	pub jumping: Jumping,
+	pub position: Position,
+}
+
+impl Default for PlayerBundle {
+	fn default() -> Self {
+		Self {
+			player: Default::default(),
+			velocity: Default::default(),
+			gravity: Default::default(),
+			on_ground: Default::default(),
+			look_direction: Default::default(),
+			move_direction: Default::default(),
+			jumping: Default::default(),
+			position: Default::default(),
+		}
+	}
+}
+
 fn move_player(
-	keyboard_input: Res<Input<KeyCode>>,
-	mut query: Query<(&mut Player, &mut Velocity)>,
+	mut q_player: Query<
+		(
+			&mut Velocity,
+			&mut LookDirection,
+			&mut OnGround,
+			&MoveDirection,
+			&Jumping,
+		),
+		With<Player>,
+	>,
 	time: Res<Time>,
 ) {
-	let mut direction = 0.0;
-	if keyboard_input.pressed(KeyCode::Left) || keyboard_input.pressed(KeyCode::A) {
-		direction -= 1.0;
-	}
-	if keyboard_input.pressed(KeyCode::Right) || keyboard_input.pressed(KeyCode::D) {
-		direction += 1.0;
-	}
-	let (mut player, mut velocity) = query.single_mut();
-	let mut jumping = false;
-	if keyboard_input.pressed(KeyCode::Up) || keyboard_input.pressed(KeyCode::W) {
-		jumping = true;
-	};
-	if player.on_ground {
-		if jumping {
-			player.on_ground = false;
-			velocity.y = PLAYER_JUMP_FORCE;
-		}
-		if direction == 0.0 {
-			velocity.x = 0.0;
-			return;
-		}
-		velocity.x += direction * PLAYER_ACCEL * time.delta_seconds();
-	} else {
-		if direction != 0.0 {
-			velocity.x += direction * PLAYER_ACCEL * AIR_CONTROL * time.delta_seconds();
+	for (mut velocity, mut look_direction, mut on_ground, move_direction, jumping) in &mut q_player
+	{
+		let direction = match move_direction {
+			MoveDirection::Left => {
+				*look_direction = LookDirection::Left;
+				-1.0
+			}
+			MoveDirection::Right => {
+				*look_direction = LookDirection::Right;
+				1.0
+			}
+			MoveDirection::None => 0.0,
+		};
+		if on_ground.0 {
+			if jumping.0 {
+				on_ground.0 = false;
+				velocity.y = PLAYER_JUMP_FORCE;
+			}
+			if direction == 0.0 {
+				velocity.x = 0.0;
+				return;
+			}
+			velocity.x += direction * PLAYER_ACCEL * time.delta_seconds();
+		} else {
+			if direction != 0.0 {
+				velocity.x += direction * PLAYER_ACCEL * AIR_CONTROL * time.delta_seconds();
+			}
+			velocity.x = velocity.x.clamp(-PLAYER_SPEED, PLAYER_SPEED);
+			if velocity.x > 0.0 {
+				velocity.x -= AIR_FRICTION * time.delta_seconds();
+			} else if velocity.x < 0.0 {
+				velocity.x += AIR_FRICTION * time.delta_seconds();
+			}
 		}
 		velocity.x = velocity.x.clamp(-PLAYER_SPEED, PLAYER_SPEED);
-		if velocity.x > 0.0 {
-			velocity.x -= AIR_FRICTION * time.delta_seconds();
-		} else if velocity.x < 0.0 {
-			velocity.x += AIR_FRICTION * time.delta_seconds();
-		}
 	}
-	velocity.x = velocity.x.clamp(-PLAYER_SPEED, PLAYER_SPEED);
 }

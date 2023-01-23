@@ -1,13 +1,13 @@
+use crate::{
+	grid::{region_collides, Chunk, Region},
+	players::OnGround,
+	Player, GRAVITY_SCALE, PLAYER_SIZE, TERMINAL_VELOCITY, TILE_SIZE,
+};
 use bevy::{
 	prelude::{
 		App, Children, Component, Deref, DerefMut, Plugin, Query, Res, Transform, Vec2, Vec3, With,
 	},
 	time::Time,
-};
-
-use crate::{
-	grid::{region_collides, Chunk, Region},
-	Player, PLAYER_SIZE, TERMINAL_VELOCITY, TILE_SIZE,
 };
 
 pub struct Physics;
@@ -26,19 +26,38 @@ pub struct Collider;
 #[derive(Component, Deref, DerefMut)]
 pub struct Gravity(pub f32);
 
+impl Default for Gravity {
+	fn default() -> Self {
+		Self(GRAVITY_SCALE)
+	}
+}
+
 #[derive(Component, Deref, DerefMut)]
 pub struct Velocity(pub Vec2);
 
+impl Default for Velocity {
+	fn default() -> Self {
+		Self(Vec2::ZERO)
+	}
+}
+
 #[derive(Component)]
-pub struct Position(pub Vec3);
+pub struct Position(pub Vec2);
+
+impl Default for Position {
+	fn default() -> Self {
+		Self(Vec2::ZERO)
+	}
+}
 
 fn motion_tween(mut q_objects: Query<(&mut Transform, &Position)>) {
 	for (mut transform, position) in &mut q_objects {
-		if transform.translation == position.0 {
+		if transform.translation.truncate() == position.0 {
 			continue;
 		}
-		if transform.translation.distance(position.0) < 1.0 {
-			transform.translation = position.0;
+		let pos_vec3 = position.0.extend(0.0);
+		if transform.translation.distance(pos_vec3) < 1.0 {
+			transform.translation = pos_vec3;
 		}
 		transform.translation = Vec3::new(
 			transform.translation.x + ((position.0.x - transform.translation.x) * 0.1),
@@ -52,17 +71,16 @@ fn apply_velocity(
 	time: Res<Time>,
 	q_colliders: Query<&Region, With<Collider>>,
 	q_chunks: Query<(&Region, &Children), With<Chunk>>,
-	mut player_query: Query<(&mut Position, &mut Velocity, &Player)>,
+	mut player_query: Query<(&mut Position, &mut Velocity, &OnGround), With<Player>>,
 ) {
-	for (mut player_position, mut player_velocity, player) in &mut player_query {
+	for (mut player_position, mut player_velocity, on_ground) in &mut player_query {
 		if player_velocity.x == 0.0 && player_velocity.y == 0.0 {
 			continue;
 		}
 		let delta_y = player_velocity.y * time.delta_seconds();
-		let new_pos = Vec3::new(
+		let new_pos = Vec2::new(
 			player_position.0.x + (player_velocity.x * time.delta_seconds()),
 			player_position.0.y + delta_y,
-			0.0,
 		);
 		let new_player_region = Region::from_size(
 			&Vec2::new(
@@ -75,8 +93,8 @@ fn apply_velocity(
 			player_position.0 = new_pos;
 		} else if player_velocity.x != 0.0 {
 			let step_up_region = new_player_region.moved(&Vec2::new(0.0, TILE_SIZE.y));
-			if player.on_ground && !region_collides(&step_up_region, &q_colliders, &q_chunks) {
-				player_position.0 = Vec3::new(new_pos.x, new_pos.y + TILE_SIZE.y, 0.0);
+			if on_ground.0 && !region_collides(&step_up_region, &q_colliders, &q_chunks) {
+				player_position.0 = Vec2::new(new_pos.x, new_pos.y + TILE_SIZE.y);
 			} else {
 				player_velocity.x = 0.0;
 				let new_player_region = Region::from_size(
@@ -100,12 +118,12 @@ fn apply_velocity(
 }
 
 fn apply_gravity(
-	mut query: Query<(&Gravity, &mut Velocity, &mut Position, &mut Player)>,
+	mut query: Query<(&Gravity, &mut Velocity, &mut Position, &mut OnGround), With<Player>>,
 	time: Res<Time>,
 	q_colliders: Query<&Region, With<Collider>>,
 	q_chunks: Query<(&Region, &Children), With<Chunk>>,
 ) {
-	for (gravity, mut velocity, mut position, mut player) in &mut query {
+	for (gravity, mut velocity, mut position, mut on_ground) in &mut query {
 		let floor_check = Region::from_size(
 			&Vec2::new(
 				position.0.x - (PLAYER_SIZE.x as f32 * 0.5),
@@ -116,24 +134,24 @@ fn apply_gravity(
 		.moved(&Vec2::new(0.0, -1.0));
 		let new_on_ground = region_collides(&floor_check, &q_colliders, &q_chunks);
 		if velocity.y <= 0.0 && new_on_ground {
-			player.on_ground = true;
+			on_ground.0 = true;
 			if velocity.y < 0.0 {
 				velocity.y = 0.0;
 			}
 			continue;
 		}
-		if !new_on_ground && player.on_ground {
+		if !new_on_ground && on_ground.0 {
 			if region_collides(
 				&floor_check.moved(&Vec2::new(0.0, -TILE_SIZE.y)),
 				&q_colliders,
 				&q_chunks,
 			) {
-				player.on_ground = false;
+				on_ground.0 = false;
 				position.0.y -= TILE_SIZE.y;
 				continue;
 			}
 		}
-		player.on_ground = false;
+		on_ground.0 = false;
 		if velocity.y < -TERMINAL_VELOCITY {
 			continue;
 		}

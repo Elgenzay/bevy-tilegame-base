@@ -1,3 +1,4 @@
+use crate::{physics::Collider, CHUNK_SIZE, TILE_SIZE};
 use bevy::{
 	prelude::{
 		App, AssetServer, BuildChildren, Children, Commands, Component, DespawnRecursiveExt,
@@ -11,8 +12,6 @@ use bevy_ecs_tilemap::{
 	tiles::{TileBundle, TilePos, TileStorage},
 	TilemapBundle,
 };
-
-use crate::{physics::Collider, CHUNK_SIZE, TILE_SIZE};
 
 pub struct Grid;
 
@@ -37,7 +36,7 @@ pub struct Region {
 
 impl Region {
 	pub fn from_size(position: &Vec2, size: &Vec2) -> Region {
-		Region {
+		Self {
 			top: position.y + size.y,
 			left: position.x,
 			bottom: position.y,
@@ -46,7 +45,7 @@ impl Region {
 	}
 
 	pub fn moved(&self, movement: &Vec2) -> Region {
-		Region {
+		Self {
 			top: self.top + movement.y,
 			bottom: self.bottom + movement.y,
 			left: self.left + movement.x,
@@ -60,9 +59,9 @@ pub struct Map(HashMap<(i32, i32), MapChunk>);
 
 impl Map {
 	pub fn get_tile(&self, coord: Coordinate) -> Option<&Tile> {
-		let chunk_coord = coord.as_chunk();
+		let chunk_coord = coord.as_chunk_coord();
 		if let Some(map_chunk) = self.0.get(&(chunk_coord.x_i32(), chunk_coord.y_i32())) {
-			let local_coord = coord.as_chunklocal();
+			let local_coord = coord.as_chunklocal_coord();
 			if let Some(tile) = map_chunk
 				.tiles
 				.get(&(local_coord.x_i32(), local_coord.y_i32()))
@@ -80,8 +79,8 @@ pub struct MapChunk {
 }
 
 impl MapChunk {
-	fn from_tilemap(chunk_entity: Entity) -> MapChunk {
-		MapChunk {
+	fn from_tilemap(chunk_entity: Entity) -> Self {
+		Self {
 			tilemap_entity: chunk_entity,
 			tiles: HashMap::new(),
 		}
@@ -110,67 +109,67 @@ pub enum Coordinate {
 	World { x: f32, y: f32 },
 	Tile { x: i32, y: i32 },
 	Chunk { x: i32, y: i32 },
-	ChunkLocal { x: i32, y: i32 },
+	ChunkLocal { x: u8, y: u8 },
 }
 
 impl Coordinate {
 	pub fn x_i32(&self) -> i32 {
 		match self {
-			Coordinate::World { x, y: _ } => *x as i32,
-			Coordinate::Tile { x, y: _ }
-			| Coordinate::Chunk { x, y: _ }
-			| Coordinate::ChunkLocal { x, y: _ } => *x,
+			Self::World { x, y: _ } => *x as i32,
+			Self::ChunkLocal { x, y: _ } => *x as i32,
+			Self::Tile { x, y: _ } => *x as i32,
+			Self::Chunk { x, y: _ } => *x as i32,
 		}
 	}
 
 	pub fn y_i32(&self) -> i32 {
 		match self {
-			Coordinate::World { x: _, y } => *y as i32,
-			Coordinate::Tile { x: _, y }
-			| Coordinate::Chunk { x: _, y }
-			| Coordinate::ChunkLocal { x: _, y } => *y,
+			Self::World { x: _, y } => *y as i32,
+			Self::Tile { x: _, y } => *y,
+			Self::Chunk { x: _, y } => *y,
+			Self::ChunkLocal { x: _, y } => *y as i32,
 		}
 	}
 
 	pub fn x_f32(&self) -> f32 {
 		match self {
-			Coordinate::World { x, y: _ } => *x,
-			Coordinate::Tile { x, y: _ }
-			| Coordinate::Chunk { x, y: _ }
-			| Coordinate::ChunkLocal { x, y: _ } => *x as f32,
+			Self::World { x, y: _ } => *x,
+			Self::Tile { x, y: _ } => *x as f32,
+			Self::Chunk { x, y: _ } => *x as f32,
+			Self::ChunkLocal { x, y: _ } => *x as f32,
 		}
 	}
 
 	pub fn y_f32(&self) -> f32 {
 		match self {
-			Coordinate::World { x: _, y } => *y,
-			Coordinate::Tile { x: _, y }
-			| Coordinate::Chunk { x: _, y }
-			| Coordinate::ChunkLocal { x: _, y } => *y as f32,
+			Self::World { x: _, y } => *y,
+			Self::Tile { x: _, y } => *y as f32,
+			Self::Chunk { x: _, y } => *y as f32,
+			Self::ChunkLocal { x: _, y } => *y as f32,
 		}
 	}
 
-	pub fn from_vec2(v: Vec2) -> Coordinate {
-		Coordinate::World { x: v.x, y: v.y }
+	pub fn from_vec2(v: Vec2) -> Self {
+		Self::World { x: v.x, y: v.y }
 	}
 
-	pub fn as_tile(&self) -> Coordinate {
+	pub fn as_tile_coord(&self) -> Self {
 		match self {
-			Coordinate::World { x, y } => Coordinate::Tile {
+			Self::World { x, y } => Self::Tile {
 				x: ((x - (TILE_SIZE.x * 0.5)) / TILE_SIZE.x).ceil() as i32,
 				y: ((y - (TILE_SIZE.y * 0.5)) / TILE_SIZE.y).ceil() as i32,
 			},
-			Coordinate::Chunk { x: _, y: _ } => {
+			Self::Chunk { x: _, y: _ } => {
 				panic!("Tried to convert chunk coordinate to tile coordinate")
 			}
-			Coordinate::ChunkLocal { x: _, y: _ } => {
+			Self::ChunkLocal { x: _, y: _ } => {
 				panic!("Tried to convert chunklocal coordinate to tile coordinate")
 			}
-			Coordinate::Tile { x: _, y: _ } => *self,
+			Self::Tile { x: _, y: _ } => *self,
 		}
 	}
 
-	pub fn as_chunk(&self) -> Coordinate {
+	pub fn as_chunk_coord(&self) -> Coordinate {
 		let chunksize_x_f32 = CHUNK_SIZE.x as f32;
 		let chunksize_y_f32 = CHUNK_SIZE.y as f32;
 		match self {
@@ -179,7 +178,7 @@ impl Coordinate {
 				y: (((*y as f32 - 1.0) - (chunksize_y_f32 * 0.5)) / chunksize_y_f32).ceil() as i32,
 			},
 			Coordinate::World { x: _, y: _ } => {
-				let tile_coord = self.as_tile();
+				let tile_coord = self.as_tile_coord();
 				Coordinate::Chunk {
 					x: (((tile_coord.x_f32() - 1.0) - (chunksize_x_f32 * 0.5)) / chunksize_x_f32)
 						.ceil() as i32,
@@ -194,8 +193,8 @@ impl Coordinate {
 		}
 	}
 
-	pub fn as_chunklocal(&self) -> Coordinate {
-		let tile_coord = self.as_tile();
+	pub fn as_chunklocal_coord(&self) -> Self {
+		let tile_coord = self.as_tile_coord();
 		let chunk_size_x_i32 = CHUNK_SIZE.x as i32;
 		let chunk_size_y_i32 = CHUNK_SIZE.y as i32;
 		let x = match tile_coord.x_i32().checked_rem(chunk_size_x_i32) {
@@ -218,7 +217,10 @@ impl Coordinate {
 			}
 			None => 0,
 		};
-		Coordinate::ChunkLocal { x, y }
+		Self::ChunkLocal {
+			x: x as u8,
+			y: y as u8,
+		}
 	}
 }
 
@@ -354,9 +356,9 @@ fn destroy_tile(
 	mut commands: Commands,
 ) {
 	for ev in ev_destroy.iter() {
-		let chunk_coord = ev.0.as_chunk();
+		let chunk_coord = ev.0.as_chunk_coord();
 		if let Some(mapchunk) = map.0.get_mut(&(chunk_coord.x_i32(), chunk_coord.y_i32())) {
-			let local_coord = ev.0.as_chunklocal();
+			let local_coord = ev.0.as_chunklocal_coord();
 			if let Some(tile) = mapchunk
 				.tiles
 				.remove(&(local_coord.x_i32(), local_coord.y_i32()))

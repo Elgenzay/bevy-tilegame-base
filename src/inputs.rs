@@ -1,22 +1,112 @@
+use crate::{
+	grid::{Coordinate, DestroyTileEvent, Map},
+	players::{Jumping, MoveDirection, Player},
+	settings::Settings,
+	Cursor,
+};
 use bevy::{
 	prelude::{
-		App, Camera, EventWriter, GlobalTransform, Input, MouseButton, Plugin, Query, Res, ResMut,
-		Transform, Vec2, Vec3, With,
+		App, Camera, EventWriter, GlobalTransform, Input, KeyCode, MouseButton, Plugin, Query, Res,
+		ResMut, Transform, Vec2, Vec3, With,
 	},
 	render::camera::RenderTarget,
 	window::Windows,
-};
-
-use crate::{
-	grid::{Coordinate, DestroyTileEvent, Map},
-	Cursor,
 };
 
 pub struct Inputs;
 
 impl Plugin for Inputs {
 	fn build(&self, app: &mut App) {
-		app.add_system(mouse_events_system);
+		app.add_system(mouse_events_system)
+			.add_system(keyboard_events_system);
+	}
+}
+
+pub struct KeyBinds {
+	pub move_left: KeyBind,
+	pub move_right: KeyBind,
+	pub jump: KeyBind,
+}
+
+impl Default for KeyBinds {
+	fn default() -> Self {
+		Self {
+			move_left: KeyBind {
+				primary: Some(KeyCode::A),
+				secondary: Some(KeyCode::Left),
+			},
+			move_right: KeyBind {
+				primary: Some(KeyCode::D),
+				secondary: Some(KeyCode::Right),
+			},
+			jump: KeyBind {
+				primary: Some(KeyCode::W),
+				secondary: Some(KeyCode::Space),
+			},
+		}
+	}
+}
+
+pub struct KeyBind {
+	pub primary: Option<KeyCode>,
+	pub secondary: Option<KeyCode>,
+}
+
+impl KeyBind {
+	pub fn is_pressed(&self, input: &Input<KeyCode>) -> bool {
+		if let Some(v) = self.primary {
+			if input.pressed(v) {
+				return true;
+			}
+		}
+		if let Some(v) = self.secondary {
+			if input.pressed(v) {
+				return true;
+			}
+		}
+		false
+	}
+
+	pub fn just_pressed(&self, input: &Input<KeyCode>) -> bool {
+		if let Some(v) = self.primary {
+			if input.just_pressed(v) {
+				return true;
+			}
+		}
+		if let Some(v) = self.secondary {
+			if input.just_pressed(v) {
+				return true;
+			}
+		}
+		false
+	}
+}
+
+fn keyboard_events_system(
+	input: Res<Input<KeyCode>>,
+	settings: Res<Settings>,
+	mut q_player: Query<(&Player, &mut MoveDirection, &mut Jumping)>,
+) {
+	for (player, mut move_direction, mut jumping) in &mut q_player {
+		if let Player::Local = player {
+			let mut dir = MoveDirection::None;
+			if settings.keybinds.move_left.is_pressed(&input) {
+				dir = MoveDirection::Left;
+			}
+			if settings.keybinds.move_right.is_pressed(&input) {
+				if let MoveDirection::Left = dir {
+					dir = MoveDirection::None;
+				} else {
+					dir = MoveDirection::Right;
+				}
+			}
+			*move_direction = dir;
+			if settings.hold_to_keep_jumping {
+				jumping.0 = settings.keybinds.jump.is_pressed(&input);
+			} else {
+				jumping.0 = settings.keybinds.jump.just_pressed(&input);
+			}
+		}
 	}
 }
 

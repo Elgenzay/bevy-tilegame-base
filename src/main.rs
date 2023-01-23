@@ -2,14 +2,16 @@ mod grid;
 mod inputs;
 mod physics;
 mod players;
+mod settings;
 
 use bevy::math::Vec3;
 use bevy::prelude::*;
 use bevy_ecs_tilemap::{prelude::TilemapTileSize, TilemapPlugin};
 use grid::{spawn_chunk, Grid, Map};
 use inputs::Inputs;
-use physics::{Gravity, Physics, Position, Velocity};
-use players::{LookDirection, Player, Players};
+use physics::{Physics, Velocity};
+use players::{Player, PlayerBundle, Players};
+use settings::Settings;
 
 const WINDOW_DEFAULT_WIDTH: f32 = 1280.0;
 const WINDOW_DEFAULT_HEIGHT: f32 = 720.0;
@@ -26,23 +28,11 @@ const AIR_CONTROL: f32 = 0.1;
 const GRAVITY_SCALE: f32 = 400.0;
 const TERMINAL_VELOCITY: f32 = 500.0;
 
-#[derive(Resource)]
-struct Settings {
-	hold_to_keep_jumping: Setting,
-}
-
-struct Setting {
-	value: SettingValue,
-	label: String,
-	description: String,
-}
-
-enum SettingValue {
-	Bool(bool),
-}
-
 #[derive(Component)]
 struct Cursor;
+
+#[derive(Component)]
+struct MainCamera;
 
 fn main() {
 	App::new()
@@ -66,6 +56,9 @@ fn main() {
 		.add_plugin(Physics)
 		.add_plugin(Players)
 		.add_startup_system(startup)
+		.insert_resource(Settings {
+			..Default::default()
+		})
 		.run();
 }
 
@@ -75,7 +68,7 @@ fn startup(
 	asset_server: Res<AssetServer>,
 	mut map: ResMut<Map>,
 ) {
-	commands.spawn(Camera2dBundle::default());
+	commands.spawn((Camera2dBundle::default(), MainCamera));
 
 	commands.spawn((
 		SpriteBundle {
@@ -92,19 +85,28 @@ fn startup(
 		.get_primary_mut()
 		.unwrap()
 		.set_cursor_visibility(false);
+
 	commands.spawn((
 		SpriteBundle {
 			transform: Transform::from_translation(Vec3::ZERO),
 			texture: asset_server.load("player.png"),
 			..Default::default()
 		},
-		Velocity(Vec2::ZERO),
-		Gravity(GRAVITY_SCALE),
-		Player {
-			on_ground: false,
-			look_direction: LookDirection::Right,
+		PlayerBundle {
+			..Default::default()
 		},
-		Position(Vec3::ZERO),
+	));
+
+	commands.spawn((
+		SpriteBundle {
+			transform: Transform::from_translation(Vec3::ZERO),
+			texture: asset_server.load("player.png"),
+			..Default::default()
+		},
+		PlayerBundle {
+			player: Player::Remote,
+			..Default::default()
+		},
 	));
 
 	spawn_chunk(&mut commands, &asset_server, IVec2::new(0, 1), &mut map);
