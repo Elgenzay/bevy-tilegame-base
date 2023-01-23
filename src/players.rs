@@ -1,9 +1,10 @@
 use crate::{
 	physics::{Gravity, Position},
-	Velocity, AIR_CONTROL, AIR_FRICTION, PLAYER_ACCEL, PLAYER_JUMP_FORCE, PLAYER_SPEED,
+	Cursor, MainCamera, Velocity, AIR_CONTROL, AIR_FRICTION, PLAYER_ACCEL, PLAYER_JUMP_FORCE,
+	PLAYER_SPEED,
 };
 use bevy::{
-	prelude::{App, Bundle, Component, Plugin, Query, Res, With},
+	prelude::{App, Bundle, Component, Plugin, Query, Res, Transform, Vec2, Vec3, With, Without},
 	time::Time,
 };
 
@@ -11,7 +12,7 @@ pub struct Players;
 
 impl Plugin for Players {
 	fn build(&self, app: &mut App) {
-		app.add_system(move_player);
+		app.add_system(move_player).add_system(camera_follow);
 	}
 }
 
@@ -145,5 +146,34 @@ fn move_player(
 			}
 		}
 		velocity.x = velocity.x.clamp(-PLAYER_SPEED, PLAYER_SPEED);
+	}
+}
+
+fn camera_follow(
+	mut q_camera: Query<&mut Transform, With<MainCamera>>,
+	q_player: Query<(&Player, &Position)>,
+	q_cursor: Query<&Transform, (With<Cursor>, Without<MainCamera>)>,
+) {
+	let mut camera_transform = match q_camera.get_single_mut() {
+		Ok(v) => v,
+		Err(_) => return,
+	};
+	let cursor_transform = match q_cursor.get_single() {
+		Ok(v) => v,
+		Err(_) => return,
+	};
+
+	for (player, player_position) in q_player.into_iter() {
+		if let Player::Local = player {
+			let target = Vec3::new(
+				player_position.0.x,
+				player_position.0.y,
+				camera_transform.translation.z,
+			);
+			camera_transform.translation = camera_transform
+				.translation
+				.lerp(target.lerp(cursor_transform.translation, 0.01), 0.02);
+			return;
+		}
 	}
 }

@@ -59,11 +59,9 @@ fn motion_tween(mut q_objects: Query<(&mut Transform, &Position)>) {
 		if transform.translation.distance(pos_vec3) < 1.0 {
 			transform.translation = pos_vec3;
 		}
-		transform.translation = Vec3::new(
-			transform.translation.x + ((position.0.x - transform.translation.x) * 0.1),
-			transform.translation.y + ((position.0.y - transform.translation.y) * 0.1),
-			0.0,
-		);
+		transform.translation = transform
+			.translation
+			.lerp(position.0.extend(transform.translation.z), 0.1);
 	}
 }
 

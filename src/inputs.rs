@@ -106,6 +106,7 @@ fn keyboard_events_system(
 			} else {
 				jumping.0 = settings.keybinds.jump.just_pressed(&input);
 			}
+			return;
 		}
 	}
 }
@@ -113,12 +114,15 @@ fn keyboard_events_system(
 fn mouse_events_system(
 	wnds: Res<Windows>,
 	q_camera: Query<(&Camera, &GlobalTransform), With<Camera>>,
-	mut query: Query<&mut Transform, With<Cursor>>,
+	mut q_cursor: Query<&mut Transform, With<Cursor>>,
 	map: ResMut<Map>,
 	input: Res<Input<MouseButton>>,
 	mut ev_destroytile: EventWriter<DestroyTileEvent>,
 ) {
-	let (camera, camera_transform) = q_camera.single();
+	let (camera, camera_transform) = match q_camera.get_single() {
+		Ok(v) => v,
+		Err(_) => return,
+	};
 	let wnd = if let RenderTarget::Window(id) = camera.target {
 		wnds.get(id).unwrap()
 	} else {
@@ -132,8 +136,12 @@ fn mouse_events_system(
 		let world_pos: Vec2 = world_pos.truncate();
 		let cursorlocation = Vec3::new(world_pos.x.floor(), world_pos.y.floor(), 1.0);
 		let world_coord = Coordinate::from_vec2(world_pos);
-		if query.single_mut().translation != cursorlocation {
-			query.single_mut().translation = cursorlocation;
+		let mut cursor = match q_cursor.get_single_mut() {
+			Ok(v) => v,
+			Err(_) => return,
+		};
+		if cursor.translation != cursorlocation {
+			cursor.translation = cursorlocation;
 			let tile = map.get_tile(world_coord);
 			if let Some(_) = tile {
 				//let t_coord = world_coord.as_tile();
