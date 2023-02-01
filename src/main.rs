@@ -6,7 +6,7 @@ mod settings;
 
 use bevy::math::Vec3;
 use bevy::prelude::*;
-use grid::{spawn_chunk, Grid, Map};
+use grid::{Grid, Map};
 use inputs::Inputs;
 use physics::{Physics, Velocity};
 use players::{Player, PlayerBundle, Players};
@@ -17,8 +17,8 @@ const WINDOW_DEFAULT_HEIGHT: f32 = 720.0;
 
 const CHUNK_SIZE: UVec2 = UVec2::new(4, 4);
 const TILE_SIZE: UVec2 = UVec2::new(16, 16);
-const RENDER_DISTANCE: UVec2 = UVec2::new(3, 3);
-const UNRENDER_DISTANCE: UVec2 = UVec2::new(5, 5);
+const RENDER_DISTANCE: UVec2 = UVec2::new(10, 10);
+const UNRENDER_DISTANCE: UVec2 = UVec2::new(12, 12);
 
 const PLAYER_SIZE: UVec2 = UVec2::new(24, 24);
 const PLAYER_ACCEL: f32 = 1000.0;

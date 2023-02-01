@@ -13,6 +13,7 @@ use bevy::{
 	transform::TransformBundle,
 	utils::hashbrown::HashMap,
 };
+use noise::{NoiseFn, Simplex};
 
 pub struct Grid;
 
@@ -80,15 +81,6 @@ pub struct MapChunk {
 	tiles: HashMap<(i32, i32), Tile>,
 }
 
-impl MapChunk {
-	fn from_tilemap(chunk_entity: Entity) -> Self {
-		Self {
-			chunk_entity: chunk_entity,
-			tiles: HashMap::new(),
-		}
-	}
-}
-
 pub enum TileType {
 	Generic,
 }
@@ -102,6 +94,12 @@ impl Tile {
 	fn friendly_name(&self) -> String {
 		match self.tile_type {
 			TileType::Generic => "Generic".to_owned(),
+		}
+	}
+
+	fn name(&self) -> String {
+		match self.tile_type {
+			TileType::Generic => "generic".to_owned(),
 		}
 	}
 }
@@ -234,11 +232,19 @@ pub fn spawn_chunk(
 ) -> Entity {
 	let chunk_entity = commands.spawn_empty().id();
 	let mut mapchunk_tiles = HashMap::new();
-	let texture_handle: Handle<Image> = asset_server.load("tile.png");
+	let texture_handle: Handle<Image> = asset_server.load("tiles/generic.png");
 	let tilesize_x_f32 = TILE_SIZE.x as f32;
 	let tilesize_y_f32 = TILE_SIZE.y as f32;
 	for x in 0..CHUNK_SIZE.x {
 		for y in 0..CHUNK_SIZE.y {
+			let gen_x = ((chunk_pos.x as f64 * CHUNK_SIZE.x as f64) + x as f64) * 0.05;
+			let gen_y = ((chunk_pos.y as f64 * CHUNK_SIZE.y as f64) + y as f64) * 0.05;
+			let simplex = Simplex::new(1337);
+			let noise = simplex.get([gen_x, gen_y]);
+			if noise > 0.0 {
+				continue;
+			}
+
 			let tile_entity = commands
 				.spawn((
 					SpriteBundle {
