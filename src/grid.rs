@@ -1,7 +1,7 @@
 use crate::{
-	physics::{Collider, Position, Velocity},
+	physics::{Collider, Position},
 	players::Player,
-	CHUNK_SIZE, RENDER_DISTANCE, TILE_SIZE,
+	CHUNK_SIZE, RENDER_DISTANCE, TILE_SIZE, UNRENDER_DISTANCE,
 };
 use bevy::{
 	prelude::{
@@ -20,13 +20,13 @@ impl Plugin for Grid {
 	fn build(&self, app: &mut App) {
 		app.insert_resource(Map(HashMap::new()))
 			.add_event::<DestroyTileEvent>()
-			.add_system(spawn_nearby_chunks)
+			.add_system(render_chunks)
 			.add_system(destroy_tile);
 	}
 }
 
 #[derive(Component)]
-pub struct Chunk;
+pub struct Chunk(IVec2);
 
 #[derive(Component)]
 pub struct Region {
@@ -292,7 +292,7 @@ pub fn spawn_chunk(
 			local: transform,
 			..Default::default()
 		},
-		Chunk,
+		Chunk(chunk_pos),
 		Region::from_size(
 			&Vec2::new(
 				transform.translation.x - (tilesize_x_f32 * 0.5),
@@ -382,14 +382,25 @@ fn destroy_tile(
 	}
 }
 
-fn spawn_nearby_chunks(
+fn render_chunks(
 	q_player: Query<(&Player, &Position)>,
 	mut map: ResMut<Map>,
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
+	q_chunks: Query<&Chunk>,
 ) {
 	for (player, position) in q_player.iter() {
 		if let Player::Local = player {
+			//despawn
+			let player_chunk_ivec2 = Coordinate::from_vec2(position.0).as_chunk_coord();
+			for chunk in q_chunks.iter() {
+				if (chunk.0.x - player_chunk_ivec2.x_i32()).abs() > UNRENDER_DISTANCE.x as i32
+					|| (chunk.0.y - player_chunk_ivec2.y_i32()).abs() > UNRENDER_DISTANCE.y as i32
+				{
+					despawn_chunk(&mut commands, chunk.0, &mut map);
+				}
+			}
+			//spawn
 			let current_chunk_coord = Coordinate::from_vec2(position.0).as_chunk_coord();
 			for x in (current_chunk_coord.x_i32() - RENDER_DISTANCE.x as i32)
 				..(current_chunk_coord.x_i32() + RENDER_DISTANCE.x as i32)
@@ -403,18 +414,6 @@ fn spawn_nearby_chunks(
 					spawn_chunk(&mut commands, &asset_server, IVec2::new(x, y), &mut map);
 				}
 			}
-		}
-	}
-}
-
-fn despawn_distant_chunks(
-	q_player: Query<(&Player, &Position)>,
-	mut map: ResMut<Map>,
-	mut commands: Commands,
-) {
-	for (player, position) in q_player.iter() {
-		if let Player::Local = player {
-			//
 		}
 	}
 }
