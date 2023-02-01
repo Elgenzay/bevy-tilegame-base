@@ -2,9 +2,10 @@ use crate::{
 	grid::{Coordinate, DestroyTileEvent, Map},
 	players::{Jumping, MoveDirection, Player},
 	settings::Settings,
-	Cursor,
+	Cursor, TILE_SIZE,
 };
 use bevy::{
+	ecs::world,
 	prelude::{
 		App, Camera, EventWriter, GlobalTransform, Input, KeyCode, MouseButton, Plugin, Query, Res,
 		ResMut, Transform, Vec2, Vec3, With,
@@ -152,9 +153,11 @@ fn mouse_events_system(
 				//	);
 			}
 		}
-		if input.just_pressed(MouseButton::Left) {
-			//println!("click");
-			ev_destroytile.send(DestroyTileEvent(world_coord));
-		}
+		if input.just_pressed(MouseButton::Left) {}
+		ev_destroytile.send(DestroyTileEvent(world_coord));
+		ev_destroytile.send(DestroyTileEvent(Coordinate::from_vec2(Vec2::new(
+			world_coord.x_f32() + TILE_SIZE.x as f32,
+			world_coord.y_f32(),
+		))));
 	}
 }

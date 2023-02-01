@@ -1,8 +1,12 @@
-use crate::{physics::Collider, players::Player, CHUNK_SIZE, TILE_SIZE};
+use crate::{
+	physics::{Collider, Position, Velocity},
+	players::Player,
+	CHUNK_SIZE, RENDER_DISTANCE, TILE_SIZE,
+};
 use bevy::{
 	prelude::{
 		App, AssetServer, BuildChildren, Children, Commands, Component, DespawnRecursiveExt,
-		Entity, EventReader, Handle, IVec2, Image, Plugin, Query, ResMut, Resource, Transform,
+		Entity, EventReader, Handle, IVec2, Image, Plugin, Query, Res, ResMut, Resource, Transform,
 		Vec2, Vec3, VisibilityBundle, With,
 	},
 	sprite::SpriteBundle,
@@ -231,7 +235,6 @@ pub fn spawn_chunk(
 	let chunk_entity = commands.spawn_empty().id();
 	let mut mapchunk_tiles = HashMap::new();
 	let texture_handle: Handle<Image> = asset_server.load("tile.png");
-	//let existing_chunk = map.0.get(&(chunk_pos.x, chunk_pos.y));
 	let tilesize_x_f32 = TILE_SIZE.x as f32;
 	let tilesize_y_f32 = TILE_SIZE.y as f32;
 	for x in 0..CHUNK_SIZE.x {
@@ -314,6 +317,13 @@ pub fn spawn_chunk(
 	chunk_entity
 }
 
+pub fn despawn_chunk(commands: &mut Commands, chunk_pos: IVec2, map: &mut Map) {
+	if let Some(v) = map.0.get(&(chunk_pos.x, chunk_pos.y)) {
+		commands.entity(v.chunk_entity).despawn_recursive();
+	}
+	map.0.remove(&(chunk_pos.x, chunk_pos.y));
+}
+
 pub fn region_collides(
 	region: &Region,
 	q_colliders: &Query<&Region, With<Collider>>,
@@ -372,8 +382,37 @@ fn destroy_tile(
 	}
 }
 
-fn spawn_nearby_chunks(q_player: Query<&Player>) {
-	for player in q_player.iter() {
+fn spawn_nearby_chunks(
+	q_player: Query<(&Player, &Position)>,
+	mut map: ResMut<Map>,
+	mut commands: Commands,
+	asset_server: Res<AssetServer>,
+) {
+	for (player, position) in q_player.iter() {
+		if let Player::Local = player {
+			let current_chunk_coord = Coordinate::from_vec2(position.0).as_chunk_coord();
+			for x in (current_chunk_coord.x_i32() - RENDER_DISTANCE.x as i32)
+				..(current_chunk_coord.x_i32() + RENDER_DISTANCE.x as i32)
+			{
+				for y in (current_chunk_coord.y_i32() - RENDER_DISTANCE.y as i32)
+					..(current_chunk_coord.y_i32() + RENDER_DISTANCE.y as i32)
+				{
+					if map.0.contains_key(&(x, y)) {
+						continue;
+					}
+					spawn_chunk(&mut commands, &asset_server, IVec2::new(x, y), &mut map);
+				}
+			}
+		}
+	}
+}
+
+fn despawn_distant_chunks(
+	q_player: Query<(&Player, &Position)>,
+	mut map: ResMut<Map>,
+	mut commands: Commands,
+) {
+	for (player, position) in q_player.iter() {
 		if let Player::Local = player {
 			//
 		}

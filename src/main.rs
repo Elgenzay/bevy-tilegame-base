@@ -17,6 +17,8 @@ const WINDOW_DEFAULT_HEIGHT: f32 = 720.0;
 
 const CHUNK_SIZE: UVec2 = UVec2::new(4, 4);
 const TILE_SIZE: UVec2 = UVec2::new(16, 16);
+const RENDER_DISTANCE: UVec2 = UVec2::new(3, 3);
+const UNRENDER_DISTANCE: UVec2 = UVec2::new(5, 5);
 
 const PLAYER_SIZE: UVec2 = UVec2::new(24, 24);
 const PLAYER_ACCEL: f32 = 1000.0;
@@ -106,19 +108,4 @@ fn startup(
 			..Default::default()
 		},
 	));
-
-	spawn_chunk(&mut commands, &asset_server, IVec2::new(0, 1), &mut map);
-	spawn_chunk(&mut commands, &asset_server, IVec2::new(0, -2), &mut map);
-	spawn_chunk(&mut commands, &asset_server, IVec2::new(-2, -2), &mut map);
-	spawn_chunk(&mut commands, &asset_server, IVec2::new(-2, 0), &mut map);
-	spawn_chunk(&mut commands, &asset_server, IVec2::new(2, 2), &mut map);
-	spawn_chunk(&mut commands, &asset_server, IVec2::new(-1, -1), &mut map);
-	spawn_chunk(&mut commands, &asset_server, IVec2::new(1, 0), &mut map);
-
-	spawn_chunk(&mut commands, &asset_server, IVec2::new(-3, 0), &mut map);
-	spawn_chunk(&mut commands, &asset_server, IVec2::new(-3, 1), &mut map);
-	spawn_chunk(&mut commands, &asset_server, IVec2::new(-3, 2), &mut map);
-	spawn_chunk(&mut commands, &asset_server, IVec2::new(-4, 0), &mut map);
-	spawn_chunk(&mut commands, &asset_server, IVec2::new(-4, 1), &mut map);
-	spawn_chunk(&mut commands, &asset_server, IVec2::new(-4, 2), &mut map);
 }
