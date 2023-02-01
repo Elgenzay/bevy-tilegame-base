@@ -1,16 +1,13 @@
-use crate::{physics::Collider, CHUNK_SIZE, TILE_SIZE};
+use crate::{physics::Collider, players::Player, CHUNK_SIZE, TILE_SIZE};
 use bevy::{
 	prelude::{
 		App, AssetServer, BuildChildren, Children, Commands, Component, DespawnRecursiveExt,
 		Entity, EventReader, Handle, IVec2, Image, Plugin, Query, ResMut, Resource, Transform,
-		Vec2, Vec3, With,
+		Vec2, Vec3, VisibilityBundle, With,
 	},
+	sprite::SpriteBundle,
+	transform::TransformBundle,
 	utils::hashbrown::HashMap,
-};
-use bevy_ecs_tilemap::{
-	prelude::{TilemapId, TilemapTexture},
-	tiles::{TileBundle, TilePos, TileStorage},
-	TilemapBundle,
 };
 
 pub struct Grid;
@@ -19,6 +16,7 @@ impl Plugin for Grid {
 	fn build(&self, app: &mut App) {
 		app.insert_resource(Map(HashMap::new()))
 			.add_event::<DestroyTileEvent>()
+			.add_system(spawn_nearby_chunks)
 			.add_system(destroy_tile);
 	}
 }
@@ -74,14 +72,14 @@ impl Map {
 }
 
 pub struct MapChunk {
-	tilemap_entity: Entity,
+	chunk_entity: Entity,
 	tiles: HashMap<(i32, i32), Tile>,
 }
 
 impl MapChunk {
 	fn from_tilemap(chunk_entity: Entity) -> Self {
 		Self {
-			tilemap_entity: chunk_entity,
+			chunk_entity: chunk_entity,
 			tiles: HashMap::new(),
 		}
 	}
@@ -156,8 +154,8 @@ impl Coordinate {
 	pub fn as_tile_coord(&self) -> Self {
 		match self {
 			Self::World { x, y } => Self::Tile {
-				x: ((x - (TILE_SIZE.x * 0.5)) / TILE_SIZE.x).ceil() as i32,
-				y: ((y - (TILE_SIZE.y * 0.5)) / TILE_SIZE.y).ceil() as i32,
+				x: ((x - (TILE_SIZE.x as f32 * 0.5)) / TILE_SIZE.x as f32).ceil() as i32,
+				y: ((y - (TILE_SIZE.y as f32 * 0.5)) / TILE_SIZE.y as f32).ceil() as i32,
 			},
 			Self::Chunk { x: _, y: _ } => {
 				panic!("Tried to convert chunk coordinate to tile coordinate")
@@ -230,36 +228,43 @@ pub fn spawn_chunk(
 	chunk_pos: IVec2,
 	map: &mut Map,
 ) -> Entity {
-	let tilemap_entity = commands.spawn_empty().id();
-	let mut tile_storage = TileStorage::empty(CHUNK_SIZE.into());
+	let chunk_entity = commands.spawn_empty().id();
 	let mut mapchunk_tiles = HashMap::new();
+	let texture_handle: Handle<Image> = asset_server.load("tile.png");
 	//let existing_chunk = map.0.get(&(chunk_pos.x, chunk_pos.y));
+	let tilesize_x_f32 = TILE_SIZE.x as f32;
+	let tilesize_y_f32 = TILE_SIZE.y as f32;
 	for x in 0..CHUNK_SIZE.x {
 		for y in 0..CHUNK_SIZE.y {
-			let tile_pos = TilePos { x, y };
 			let tile_entity = commands
 				.spawn((
-					TileBundle {
-						position: tile_pos,
-						tilemap_id: TilemapId(tilemap_entity),
+					SpriteBundle {
+						texture: texture_handle.clone(),
+						transform: Transform {
+							translation: Vec3 {
+								x: x as f32 * tilesize_x_f32,
+								y: y as f32 * tilesize_y_f32,
+								z: 0.0,
+							},
+							..Default::default()
+						},
 						..Default::default()
 					},
 					Collider,
 					Region::from_size(
 						&Vec2::new(
-							(x as f32 * TILE_SIZE.x)
-								+ (chunk_pos.x as f32 * CHUNK_SIZE.x as f32 * TILE_SIZE.x as f32)
-								- (TILE_SIZE.x * 0.5),
-							(y as f32 * TILE_SIZE.y)
-								+ (chunk_pos.y as f32 * CHUNK_SIZE.y as f32 * TILE_SIZE.y as f32)
-								- (TILE_SIZE.y * 0.5),
+							(x as f32 * tilesize_x_f32)
+								+ (chunk_pos.x as f32 * CHUNK_SIZE.x as f32 * tilesize_x_f32)
+								- (tilesize_x_f32 * 0.5),
+							(y as f32 * tilesize_y_f32)
+								+ (chunk_pos.y as f32 * CHUNK_SIZE.y as f32 * tilesize_y_f32)
+								- (tilesize_y_f32 * 0.5),
 						),
-						&Vec2::new(TILE_SIZE.x, TILE_SIZE.y),
+						&Vec2::new(tilesize_x_f32, tilesize_y_f32),
 					),
 				))
 				.id();
-			commands.entity(tilemap_entity).add_child(tile_entity);
-			tile_storage.set(&tile_pos, tile_entity);
+			commands.entity(chunk_entity).add_child(tile_entity);
 			mapchunk_tiles.insert(
 				(x as i32, y as i32),
 				Tile {
@@ -271,44 +276,42 @@ pub fn spawn_chunk(
 	}
 
 	let transform = Transform::from_translation(Vec3::new(
-		chunk_pos.x as f32 * CHUNK_SIZE.x as f32 * TILE_SIZE.x,
-		chunk_pos.y as f32 * CHUNK_SIZE.y as f32 * TILE_SIZE.y,
+		chunk_pos.x as f32 * CHUNK_SIZE.x as f32 * tilesize_x_f32,
+		chunk_pos.y as f32 * CHUNK_SIZE.y as f32 * tilesize_y_f32,
 		0.0,
 	));
-	let texture_handle: Handle<Image> = asset_server.load("tiles.png");
-	commands.entity(tilemap_entity).insert((
-		TilemapBundle {
-			grid_size: TILE_SIZE.into(),
-			size: CHUNK_SIZE.into(),
-			storage: tile_storage,
-			texture: TilemapTexture::Single(texture_handle),
-			tile_size: TILE_SIZE,
-			transform,
+
+	commands.entity(chunk_entity).insert((
+		VisibilityBundle {
+			..Default::default()
+		},
+		TransformBundle {
+			local: transform,
 			..Default::default()
 		},
 		Chunk,
 		Region::from_size(
 			&Vec2::new(
-				transform.translation.x - (TILE_SIZE.x * 0.5),
-				transform.translation.y - (TILE_SIZE.y * 0.5),
+				transform.translation.x - (tilesize_x_f32 * 0.5),
+				transform.translation.y - (tilesize_y_f32 * 0.5),
 			),
 			&Vec2::new(
-				CHUNK_SIZE.x as f32 * TILE_SIZE.x,
-				CHUNK_SIZE.y as f32 * TILE_SIZE.y,
+				CHUNK_SIZE.x as f32 * tilesize_x_f32,
+				CHUNK_SIZE.y as f32 * tilesize_y_f32,
 			),
 		),
 	));
 	if let Some(v) = map.0.get(&(chunk_pos.x, chunk_pos.y)) {
-		commands.entity(v.tilemap_entity).despawn_recursive();
+		commands.entity(v.chunk_entity).despawn_recursive();
 	}
 	map.0.insert(
 		(chunk_pos.x, chunk_pos.y),
 		MapChunk {
-			tilemap_entity,
+			chunk_entity,
 			tiles: mapchunk_tiles,
 		},
 	);
-	tilemap_entity
+	chunk_entity
 }
 
 pub fn region_collides(
@@ -365,6 +368,14 @@ fn destroy_tile(
 			{
 				commands.entity(tile.entity).despawn_recursive();
 			}
+		}
+	}
+}
+
+fn spawn_nearby_chunks(q_player: Query<&Player>) {
+	for player in q_player.iter() {
+		if let Player::Local = player {
+			//
 		}
 	}
 }

@@ -6,7 +6,6 @@ mod settings;
 
 use bevy::math::Vec3;
 use bevy::prelude::*;
-use bevy_ecs_tilemap::{prelude::TilemapTileSize, TilemapPlugin};
 use grid::{spawn_chunk, Grid, Map};
 use inputs::Inputs;
 use physics::{Physics, Velocity};
@@ -16,10 +15,10 @@ use settings::Settings;
 const WINDOW_DEFAULT_WIDTH: f32 = 1280.0;
 const WINDOW_DEFAULT_HEIGHT: f32 = 720.0;
 
-const CHUNK_SIZE: UVec2 = UVec2 { x: 4, y: 4 };
-const TILE_SIZE: TilemapTileSize = TilemapTileSize { x: 16.0, y: 16.0 };
+const CHUNK_SIZE: UVec2 = UVec2::new(4, 4);
+const TILE_SIZE: UVec2 = UVec2::new(16, 16);
 
-const PLAYER_SIZE: UVec2 = UVec2 { x: 24, y: 24 };
+const PLAYER_SIZE: UVec2 = UVec2::new(24, 24);
 const PLAYER_ACCEL: f32 = 1000.0;
 const PLAYER_SPEED: f32 = 100.0;
 const PLAYER_JUMP_FORCE: f32 = 200.0;
@@ -50,7 +49,6 @@ fn main() {
 				})
 				.set(ImagePlugin::default_nearest()),
 		)
-		.add_plugin(TilemapPlugin)
 		.add_plugin(Inputs)
 		.add_plugin(Grid)
 		.add_plugin(Physics)

@@ -104,9 +104,9 @@ fn apply_velocity(
 		if !region_collides(&new_player_region, &q_colliders, &q_chunks) {
 			player_position.0 = new_pos;
 		} else if player_velocity.x != 0.0 {
-			let step_up_region = new_player_region.moved(&Vec2::new(0.0, TILE_SIZE.y));
+			let step_up_region = new_player_region.moved(&Vec2::new(0.0, TILE_SIZE.y as f32));
 			if on_ground.0 && !region_collides(&step_up_region, &q_colliders, &q_chunks) {
-				player_position.0 = Vec2::new(new_pos.x, new_pos.y + TILE_SIZE.y);
+				player_position.0 = Vec2::new(new_pos.x, new_pos.y + TILE_SIZE.y as f32);
 			} else {
 				player_velocity.x = 0.0;
 				let new_player_region = current_player_region.moved(&Vec2::new(0.0, delta_y));
@@ -164,13 +164,13 @@ fn apply_gravity(
 		if !new_on_ground && on_ground.0 {
 			//just began falling
 			if region_collides(
-				&floor_check.moved(&Vec2::new(0.0, -TILE_SIZE.y)),
+				&floor_check.moved(&Vec2::new(0.0, -(TILE_SIZE.y as f32))),
 				&q_colliders,
 				&q_chunks,
 			) {
 				//stepping down
 				on_ground.0 = false;
-				position.0.y -= TILE_SIZE.y;
+				position.0.y -= TILE_SIZE.y as f32;
 				continue;
 			}
 		}
