@@ -6,7 +6,7 @@ mod settings;
 
 use bevy::math::Vec3;
 use bevy::prelude::*;
-use grid::{Grid, Map};
+use grid::Grid;
 use inputs::Inputs;
 use physics::{Physics, Velocity};
 use players::{Player, PlayerBundle, Players};
@@ -15,12 +15,12 @@ use settings::Settings;
 const WINDOW_DEFAULT_WIDTH: f32 = 1280.0;
 const WINDOW_DEFAULT_HEIGHT: f32 = 720.0;
 
-const CHUNK_SIZE: UVec2 = UVec2::new(4, 4);
-const TILE_SIZE: UVec2 = UVec2::new(16, 16);
-const RENDER_DISTANCE: UVec2 = UVec2::new(10, 10);
-const UNRENDER_DISTANCE: UVec2 = UVec2::new(12, 12);
+const CHUNK_SIZE: UVec2 = UVec2::new(32, 32);
+const TILE_SIZE: UVec2 = UVec2::new(8, 8);
+const RENDER_DISTANCE: UVec2 = UVec2::new(3, 2);
+const UNRENDER_DISTANCE: UVec2 = UVec2::new(4, 3);
 
-const PLAYER_SIZE: UVec2 = UVec2::new(24, 24);
+const PLAYER_SIZE: UVec2 = UVec2::new(20, 36);
 const PLAYER_ACCEL: f32 = 1000.0;
 const PLAYER_SPEED: f32 = 100.0;
 const PLAYER_JUMP_FORCE: f32 = 200.0;
@@ -62,13 +62,16 @@ fn main() {
 		.run();
 }
 
-fn startup(
-	mut commands: Commands,
-	mut windows: ResMut<Windows>,
-	asset_server: Res<AssetServer>,
-	mut map: ResMut<Map>,
-) {
-	commands.spawn((Camera2dBundle::default(), MainCamera));
+fn startup(mut commands: Commands, mut windows: ResMut<Windows>, asset_server: Res<AssetServer>) {
+	let mut projection = OrthographicProjection::default();
+	projection.scale = 0.5;
+	commands.spawn((
+		Camera2dBundle {
+			projection,
+			..Default::default()
+		},
+		MainCamera,
+	));
 
 	commands.spawn((
 		SpriteBundle {

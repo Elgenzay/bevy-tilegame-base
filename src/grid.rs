@@ -149,7 +149,7 @@ impl Coordinate {
 		}
 	}
 
-	pub fn from_vec2(v: Vec2) -> Self {
+	pub fn world_coord_from_vec2(v: Vec2) -> Self {
 		Self::World { x: v.x, y: v.y }
 	}
 
@@ -174,16 +174,14 @@ impl Coordinate {
 		let chunksize_y_f32 = CHUNK_SIZE.y as f32;
 		match self {
 			Coordinate::Tile { x, y } => Coordinate::Chunk {
-				x: (((*x as f32 - 1.0) - (chunksize_x_f32 * 0.5)) / chunksize_x_f32).ceil() as i32,
-				y: (((*y as f32 - 1.0) - (chunksize_y_f32 * 0.5)) / chunksize_y_f32).ceil() as i32,
+				x: (*x as f32 / chunksize_x_f32).floor() as i32,
+				y: (*y as f32 / chunksize_y_f32).floor() as i32,
 			},
 			Coordinate::World { x: _, y: _ } => {
 				let tile_coord = self.as_tile_coord();
 				Coordinate::Chunk {
-					x: (((tile_coord.x_f32() - 1.0) - (chunksize_x_f32 * 0.5)) / chunksize_x_f32)
-						.ceil() as i32,
-					y: (((tile_coord.y_f32() - 1.0) - (chunksize_y_f32 * 0.5)) / chunksize_y_f32)
-						.ceil() as i32,
+					x: (tile_coord.x_f32() / chunksize_x_f32).floor() as i32,
+					y: (tile_coord.y_f32() / chunksize_y_f32).floor() as i32,
 				}
 			}
 			Coordinate::Chunk { x: _, y: _ } => *self,
@@ -222,6 +220,24 @@ impl Coordinate {
 			y: y as u8,
 		}
 	}
+
+	pub fn moved(&self, movement: &Vec2) -> Coordinate {
+		match self {
+			Coordinate::World { x, y } => Coordinate::World {
+				x: x + movement.x,
+				y: y + movement.y,
+			},
+			Coordinate::Tile { x, y } => Coordinate::Tile {
+				x: x + movement.x as i32,
+				y: y + movement.y as i32,
+			},
+			Coordinate::Chunk { x, y } => Coordinate::Chunk {
+				x: x + movement.x as i32,
+				y: y + movement.y as i32,
+			},
+			Coordinate::ChunkLocal { x: _, y: _ } => panic!("Tried to move ChunkLocal coordinate"),
+		}
+	}
 }
 
 pub fn spawn_chunk(
@@ -237,8 +253,8 @@ pub fn spawn_chunk(
 	let tilesize_y_f32 = TILE_SIZE.y as f32;
 	for x in 0..CHUNK_SIZE.x {
 		for y in 0..CHUNK_SIZE.y {
-			let gen_x = ((chunk_pos.x as f64 * CHUNK_SIZE.x as f64) + x as f64) * 0.05;
-			let gen_y = ((chunk_pos.y as f64 * CHUNK_SIZE.y as f64) + y as f64) * 0.05;
+			let gen_x = ((chunk_pos.x as f64 * CHUNK_SIZE.x as f64) + x as f64) * 0.025;
+			let gen_y = ((chunk_pos.y as f64 * CHUNK_SIZE.y as f64) + y as f64) * 0.025;
 			let simplex = Simplex::new(1337);
 			let noise = simplex.get([gen_x, gen_y]);
 			if noise > 0.0 {
@@ -398,7 +414,7 @@ fn render_chunks(
 	for (player, position) in q_player.iter() {
 		if let Player::Local = player {
 			//despawn
-			let player_chunk_ivec2 = Coordinate::from_vec2(position.0).as_chunk_coord();
+			let player_chunk_ivec2 = Coordinate::world_coord_from_vec2(position.0).as_chunk_coord();
 			for chunk in q_chunks.iter() {
 				if (chunk.0.x - player_chunk_ivec2.x_i32()).abs() > UNRENDER_DISTANCE.x as i32
 					|| (chunk.0.y - player_chunk_ivec2.y_i32()).abs() > UNRENDER_DISTANCE.y as i32
@@ -407,7 +423,8 @@ fn render_chunks(
 				}
 			}
 			//spawn
-			let current_chunk_coord = Coordinate::from_vec2(position.0).as_chunk_coord();
+			let current_chunk_coord =
+				Coordinate::world_coord_from_vec2(position.0).as_chunk_coord();
 			for x in (current_chunk_coord.x_i32() - RENDER_DISTANCE.x as i32)
 				..(current_chunk_coord.x_i32() + RENDER_DISTANCE.x as i32)
 			{

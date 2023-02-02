@@ -2,10 +2,9 @@ use crate::{
 	grid::{Coordinate, DestroyTileEvent, Map},
 	players::{Jumping, MoveDirection, Player},
 	settings::Settings,
-	Cursor, TILE_SIZE,
+	Cursor,
 };
 use bevy::{
-	ecs::world,
 	prelude::{
 		App, Camera, EventWriter, GlobalTransform, Input, KeyCode, MouseButton, Plugin, Query, Res,
 		ResMut, Transform, Vec2, Vec3, With,
@@ -136,7 +135,7 @@ fn mouse_events_system(
 		let world_pos = ndc_to_world.project_point3(ndc.extend(-1.0));
 		let world_pos: Vec2 = world_pos.truncate();
 		let cursorlocation = Vec3::new(world_pos.x.floor(), world_pos.y.floor(), 1.0);
-		let world_coord = Coordinate::from_vec2(world_pos);
+		let world_coord = Coordinate::world_coord_from_vec2(world_pos);
 		let mut cursor = match q_cursor.get_single_mut() {
 			Ok(v) => v,
 			Err(_) => return,
@@ -153,11 +152,15 @@ fn mouse_events_system(
 				//	);
 			}
 		}
-		if input.just_pressed(MouseButton::Left) {}
-		ev_destroytile.send(DestroyTileEvent(world_coord));
-		ev_destroytile.send(DestroyTileEvent(Coordinate::from_vec2(Vec2::new(
-			world_coord.x_f32() + TILE_SIZE.x as f32,
-			world_coord.y_f32(),
-		))));
+		if input.pressed(MouseButton::Left) {
+			let tile_coord = world_coord.as_tile_coord();
+			let bottom_left = tile_coord.moved(&Vec2::NEG_ONE);
+			let top_right = tile_coord.moved(&Vec2::ONE);
+			for x in bottom_left.x_i32()..=top_right.x_i32() {
+				for y in bottom_left.y_i32()..=top_right.y_i32() {
+					ev_destroytile.send(DestroyTileEvent(Coordinate::Tile { x, y }));
+				}
+			}
+		}
 	}
 }
