@@ -3,6 +3,7 @@ mod inputs;
 mod physics;
 mod players;
 mod settings;
+mod worldgen;
 
 use bevy::math::Vec3;
 use bevy::prelude::*;
@@ -59,6 +60,7 @@ fn main() {
 		.insert_resource(Settings {
 			..Default::default()
 		})
+		.insert_resource(ClearColor(Color::rgb(0.1, 0.1, 0.1)))
 		.run();
 }
 

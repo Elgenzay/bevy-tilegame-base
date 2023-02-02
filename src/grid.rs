@@ -1,6 +1,7 @@
 use crate::{
 	physics::{Collider, Position},
 	players::Player,
+	worldgen::tiletype_at,
 	CHUNK_SIZE, RENDER_DISTANCE, TILE_SIZE, UNRENDER_DISTANCE,
 };
 use bevy::{
@@ -13,7 +14,6 @@ use bevy::{
 	transform::TransformBundle,
 	utils::hashbrown::HashMap,
 };
-use noise::{NoiseFn, Simplex};
 
 pub struct Grid;
 
@@ -82,26 +82,24 @@ pub struct MapChunk {
 }
 
 pub enum TileType {
-	Generic,
+	DebugGray,
+	DebugGreen,
+	DebugBrown,
+}
+
+impl TileType {
+	pub fn name(&self) -> String {
+		match self {
+			TileType::DebugGray => "debug_gray".to_owned(),
+			TileType::DebugGreen => "debug_green".to_owned(),
+			TileType::DebugBrown => "debug_brown".to_owned(),
+		}
+	}
 }
 
 pub struct Tile {
 	tile_type: TileType,
 	entity: Entity,
-}
-
-impl Tile {
-	fn friendly_name(&self) -> String {
-		match self.tile_type {
-			TileType::Generic => "Generic".to_owned(),
-		}
-	}
-
-	fn name(&self) -> String {
-		match self.tile_type {
-			TileType::Generic => "generic".to_owned(),
-		}
-	}
 }
 
 #[derive(Clone, Copy)]
@@ -248,18 +246,19 @@ pub fn spawn_chunk(
 ) -> Entity {
 	let chunk_entity = commands.spawn_empty().id();
 	let mut mapchunk_tiles = HashMap::new();
-	let texture_handle: Handle<Image> = asset_server.load("tiles/generic.png");
 	let tilesize_x_f32 = TILE_SIZE.x as f32;
 	let tilesize_y_f32 = TILE_SIZE.y as f32;
 	for x in 0..CHUNK_SIZE.x {
 		for y in 0..CHUNK_SIZE.y {
-			let gen_x = ((chunk_pos.x as f64 * CHUNK_SIZE.x as f64) + x as f64) * 0.025;
-			let gen_y = ((chunk_pos.y as f64 * CHUNK_SIZE.y as f64) + y as f64) * 0.025;
-			let simplex = Simplex::new(1337);
-			let noise = simplex.get([gen_x, gen_y]);
-			if noise > 0.0 {
-				continue;
-			}
+			let tile_type = match tiletype_at(
+				(chunk_pos.x * CHUNK_SIZE.x as i32) + x as i32,
+				(chunk_pos.y * CHUNK_SIZE.y as i32) + y as i32,
+			) {
+				Some(v) => v,
+				None => continue,
+			};
+			let texture_handle: Handle<Image> =
+				asset_server.load(format!("tiles/{}.png", tile_type.name()));
 
 			let tile_entity = commands
 				.spawn((
@@ -293,7 +292,7 @@ pub fn spawn_chunk(
 			mapchunk_tiles.insert(
 				(x as i32, y as i32),
 				Tile {
-					tile_type: TileType::Generic,
+					tile_type: tile_type,
 					entity: tile_entity,
 				},
 			);
