@@ -1,5 +1,5 @@
 use crate::{
-	physics::{Collider, Position},
+	playerphysics::{Collider, Position},
 	players::Player,
 	worldgen::tiletype_at,
 	CHUNK_SIZE, RENDER_DISTANCE, TILE_SIZE, UNRENDER_DISTANCE,
@@ -61,7 +61,16 @@ impl Region {
 pub struct Map(HashMap<(i32, i32), MapChunk>);
 
 impl Map {
-	pub fn get_tile(&self, coord: Coordinate) -> Option<&Tile> {
+	pub fn get_tile(&self, coord: Coordinate) -> Result<Option<&Tile>, ()> {
+		match coord {
+			Coordinate::Chunk { x: _, y: _ } => {
+				panic!("Chunk coordinate passed to get_tile() instead of get_tiles()")
+			}
+			Coordinate::ChunkLocal { x: _, y: _ } => {
+				panic!("ChunkLocal coordinate passed to get_tile")
+			}
+			_ => (),
+		};
 		let chunk_coord = coord.as_chunk_coord();
 		if let Some(map_chunk) = self.0.get(&(chunk_coord.x_i32(), chunk_coord.y_i32())) {
 			let local_coord = coord.as_chunklocal_coord();
@@ -69,10 +78,15 @@ impl Map {
 				.tiles
 				.get(&(local_coord.x_i32(), local_coord.y_i32()))
 			{
-				return Some(tile);
+				return Ok(Some(tile));
 			}
+			return Ok(None);
 		}
-		None
+		Err(()) // chunk not loaded
+	}
+
+	pub fn get_tiles(&self, coord: Coordinate) -> Result<Vec<&Tile>, ()> {
+		Err(())
 	}
 }
 
@@ -98,8 +112,9 @@ impl TileType {
 }
 
 pub struct Tile {
-	tile_type: TileType,
-	entity: Entity,
+	pub tile_type: TileType,
+	pub entity: Entity,
+	pub active: bool, //todo
 }
 
 #[derive(Clone, Copy)]
@@ -294,6 +309,7 @@ pub fn spawn_chunk(
 				Tile {
 					tile_type: tile_type,
 					entity: tile_entity,
+					active: false,
 				},
 			);
 		}

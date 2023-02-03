@@ -10,9 +10,9 @@ use bevy::{
 	time::Time,
 };
 
-pub struct Physics;
+pub struct PlayerPhysics;
 
-impl Plugin for Physics {
+impl Plugin for PlayerPhysics {
 	fn build(&self, app: &mut App) {
 		app.add_system(apply_velocity)
 			.add_system(apply_gravity)

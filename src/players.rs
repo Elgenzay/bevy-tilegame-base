@@ -1,10 +1,10 @@
 use crate::{
-	physics::{Gravity, Position},
+	playerphysics::{Gravity, Position},
 	Cursor, MainCamera, Velocity, AIR_CONTROL, AIR_FRICTION, PLAYER_ACCEL, PLAYER_JUMP_FORCE,
 	PLAYER_SPEED,
 };
 use bevy::{
-	prelude::{App, Bundle, Component, Plugin, Query, Res, Transform, Vec2, Vec3, With, Without},
+	prelude::{App, Bundle, Component, Plugin, Query, Res, Transform, Vec3, With, Without},
 	time::Time,
 };
 

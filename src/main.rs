@@ -1,17 +1,19 @@
 mod grid;
 mod inputs;
-mod physics;
+mod playerphysics;
 mod players;
 mod settings;
+mod tilephysics;
 mod worldgen;
 
 use bevy::math::Vec3;
 use bevy::prelude::*;
 use grid::Grid;
 use inputs::Inputs;
-use physics::{Physics, Velocity};
+use playerphysics::{PlayerPhysics, Velocity};
 use players::{Player, PlayerBundle, Players};
 use settings::Settings;
+use tilephysics::TilePhysics;
 
 const WINDOW_DEFAULT_WIDTH: f32 = 1280.0;
 const WINDOW_DEFAULT_HEIGHT: f32 = 720.0;
@@ -54,7 +56,8 @@ fn main() {
 		)
 		.add_plugin(Inputs)
 		.add_plugin(Grid)
-		.add_plugin(Physics)
+		.add_plugin(PlayerPhysics)
+		.add_plugin(TilePhysics)
 		.add_plugin(Players)
 		.add_startup_system(startup)
 		.insert_resource(Settings {

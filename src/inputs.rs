@@ -143,14 +143,6 @@ fn mouse_events_system(
 		if cursor.translation != cursorlocation {
 			cursor.translation = cursorlocation;
 			let tile = map.get_tile(world_coord);
-			if let Some(_) = tile {
-				//let t_coord = world_coord.as_tile();
-				//	println!(
-				//		"({},{})",
-				//		t_coord.x_i32().to_string(),
-				//		t_coord.y_i32().to_string()
-				//	);
-			}
 		}
 		if input.pressed(MouseButton::Left) {
 			let tile_coord = world_coord.as_tile_coord();
