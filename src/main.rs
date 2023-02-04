@@ -18,7 +18,7 @@ use tilephysics::TilePhysics;
 const WINDOW_DEFAULT_WIDTH: f32 = 1280.0;
 const WINDOW_DEFAULT_HEIGHT: f32 = 720.0;
 
-const CHUNK_SIZE: UVec2 = UVec2::new(32, 32);
+const CHUNK_SIZE: (u8, u8) = (32, 32);
 const TILE_SIZE: UVec2 = UVec2::new(8, 8);
 const RENDER_DISTANCE: UVec2 = UVec2::new(3, 2);
 const UNRENDER_DISTANCE: UVec2 = UVec2::new(4, 3);

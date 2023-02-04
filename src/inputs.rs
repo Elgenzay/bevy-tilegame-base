@@ -1,13 +1,14 @@
 use crate::{
-	grid::{Coordinate, DestroyTileEvent, Map},
+	grid::{create_tile_entity, Coordinate, DestroyTileEvent, Map},
 	players::{Jumping, MoveDirection, Player},
 	settings::Settings,
+	tilephysics::UpdateTilePhysicsEvent,
 	Cursor,
 };
 use bevy::{
 	prelude::{
-		App, Camera, EventWriter, GlobalTransform, Input, KeyCode, MouseButton, Plugin, Query, Res,
-		ResMut, Transform, Vec2, Vec3, With,
+		App, AssetServer, Camera, Commands, EventWriter, GlobalTransform, Input, KeyCode,
+		MouseButton, Plugin, Query, Res, ResMut, Transform, Vec2, Vec3, With,
 	},
 	render::camera::RenderTarget,
 	window::Windows,
@@ -115,9 +116,12 @@ fn mouse_events_system(
 	wnds: Res<Windows>,
 	q_camera: Query<(&Camera, &GlobalTransform), With<Camera>>,
 	mut q_cursor: Query<&mut Transform, With<Cursor>>,
-	map: ResMut<Map>,
+	mut map: ResMut<Map>,
 	input: Res<Input<MouseButton>>,
 	mut ev_destroytile: EventWriter<DestroyTileEvent>,
+	mut ev_updatetile: EventWriter<UpdateTilePhysicsEvent>,
+	mut commands: Commands,
+	asset_server: Res<AssetServer>,
 ) {
 	let (camera, camera_transform) = match q_camera.get_single() {
 		Ok(v) => v,
@@ -142,7 +146,7 @@ fn mouse_events_system(
 		};
 		if cursor.translation != cursorlocation {
 			cursor.translation = cursorlocation;
-			let tile = map.get_tile(world_coord);
+			//let tile = map.get_tile(world_coord);
 		}
 		if input.pressed(MouseButton::Left) {
 			let tile_coord = world_coord.as_tile_coord();
@@ -153,6 +157,26 @@ fn mouse_events_system(
 					ev_destroytile.send(DestroyTileEvent(Coordinate::Tile { x, y }));
 				}
 			}
+		}
+		if input.pressed(MouseButton::Right) {
+			let tile_coord = world_coord.as_tile_coord();
+			let e = create_tile_entity(
+				&mut commands,
+				&asset_server,
+				tile_coord,
+				crate::grid::TileType::DebugBrown,
+			);
+			let _ = map.set_tile(&mut commands, tile_coord, Some(e));
+			/*
+			let tile_coord = world_coord.as_tile_coord();
+			let bottom_left = tile_coord.moved(&Vec2::NEG_ONE);
+			let top_right = tile_coord.moved(&Vec2::ONE);
+			for x in bottom_left.x_i32()..=top_right.x_i32() {
+				for y in bottom_left.y_i32()..=top_right.y_i32() {
+					ev_updatetile.send(UpdateTilePhysicsEvent(Coordinate::Tile { x, y }));
+				}
+			}
+			*/
 		}
 	}
 }
