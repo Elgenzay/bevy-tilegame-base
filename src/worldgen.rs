@@ -1,6 +1,6 @@
 use noise::{NoiseFn, Simplex};
 
-use crate::grid::TileType;
+use crate::tiles::TileType;
 
 pub fn tiletype_at(x: i32, y: i32) -> Option<TileType> {
 	let gen_x = x as f64 * 0.025;

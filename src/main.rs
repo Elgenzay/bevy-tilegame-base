@@ -4,6 +4,7 @@ mod playerphysics;
 mod players;
 mod settings;
 mod tilephysics;
+mod tiles;
 mod worldgen;
 
 use bevy::math::Vec3;

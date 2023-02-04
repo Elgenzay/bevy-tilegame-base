@@ -1,8 +1,9 @@
 use crate::{
-	grid::{create_tile_entity, Coordinate, DestroyTileEvent, Map},
+	grid::{Coordinate, DestroyTileEvent, Map},
 	players::{Jumping, MoveDirection, Player},
 	settings::Settings,
 	tilephysics::UpdateTilePhysicsEvent,
+	tiles::{create_tile_entity, TileType},
 	Cursor,
 };
 use bevy::{
@@ -164,7 +165,7 @@ fn mouse_events_system(
 				&mut commands,
 				&asset_server,
 				tile_coord,
-				crate::grid::TileType::DebugBrown,
+				TileType::DebugBrown,
 			);
 			let _ = map.set_tile(&mut commands, tile_coord, Some(e));
 			/*

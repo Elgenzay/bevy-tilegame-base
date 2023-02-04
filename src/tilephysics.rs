@@ -1,9 +1,9 @@
-use bevy::prelude::{
-	App, AssetServer, BuildChildren, Commands, Entity, EventReader, Plugin, Query, Res, ResMut,
-	Vec2, With, World,
-};
+use bevy::prelude::{App, Commands, Entity, EventReader, Plugin, Query, Res, With};
 
-use crate::grid::{create_tile_entity, Coordinate, FallingTile, Map, Tile, TileType, WeightedTile};
+use crate::{
+	grid::{Coordinate, Map},
+	tiles::{FallingTile, Tile},
+};
 
 pub struct TilePhysics;
 
