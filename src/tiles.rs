@@ -58,8 +58,8 @@ pub struct WeightedTile {
 	pub liquid: bool,
 }
 
-#[derive(Component)]
-pub struct FallingTile;
+#[derive(Component, Ord, Eq, PartialEq, PartialOrd)]
+pub struct FallingTile(pub i32);
 
 pub fn create_tile_entity(
 	commands: &mut Commands,

@@ -32,12 +32,16 @@ const AIR_FRICTION: f32 = 15.0;
 const AIR_CONTROL: f32 = 0.1;
 const GRAVITY_SCALE: f32 = 400.0;
 const TERMINAL_VELOCITY: f32 = 500.0;
+const TICKRATE: f32 = 20.0;
 
 #[derive(Component)]
 struct Cursor;
 
 #[derive(Component)]
 struct MainCamera;
+
+#[derive(Resource)]
+struct TickTimer(Timer);
 
 fn main() {
 	App::new()
@@ -65,6 +69,10 @@ fn main() {
 			..Default::default()
 		})
 		.insert_resource(ClearColor(Color::rgb(0.1, 0.1, 0.1)))
+		.insert_resource(TickTimer(Timer::from_seconds(
+			1.0 / TICKRATE,
+			TimerMode::Repeating,
+		)))
 		.run();
 }
 
@@ -106,6 +114,7 @@ fn startup(mut commands: Commands, mut windows: ResMut<Windows>, asset_server: R
 		},
 	));
 
+	/*
 	commands.spawn((
 		SpriteBundle {
 			transform: Transform::from_translation(Vec3::ZERO),
@@ -117,4 +126,5 @@ fn startup(mut commands: Commands, mut windows: ResMut<Windows>, asset_server: R
 			..Default::default()
 		},
 	));
+	*/
 }

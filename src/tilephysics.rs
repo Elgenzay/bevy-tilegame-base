@@ -1,8 +1,14 @@
-use bevy::prelude::{App, Commands, Entity, EventReader, Plugin, Query, Res, With};
+use bevy::{
+	prelude::{
+		App, AssetServer, Commands, Entity, EventReader, Plugin, Query, Res, ResMut, Vec2, With,
+	},
+	time::Time,
+};
 
 use crate::{
 	grid::{Coordinate, Map},
-	tiles::{FallingTile, Tile},
+	tiles::{create_tile_entity, FallingTile, Tile},
+	TickTimer,
 };
 
 pub struct TilePhysics;
@@ -47,20 +53,59 @@ pub fn update_tile_physics(
 				Err(_) => continue,
 			};
 			if tile.tile_type.is_weighted() {
-				commands.entity(*tile_parent).insert(FallingTile);
+				commands
+					.entity(*tile_parent)
+					.insert(FallingTile(tile.coordinate.as_tile_coord().y_i32()));
 			}
 		}
 	}
 }
 
 fn apply_gravity(
-	q_falling_tile: Query<(Entity, &Tile), With<FallingTile>>,
-	//mut map: ResMut<Map>,
+	mut q_falling_tile: Query<(Entity, &Tile, &FallingTile)>,
+	mut map: ResMut<Map>,
 	mut commands: Commands,
-	//asset_server: Res<AssetServer>,
+	asset_server: Res<AssetServer>,
+	time: Res<Time>,
+	mut timer: ResMut<TickTimer>,
 ) {
-	for (falling_tile_entity, tile) in q_falling_tile.iter() {
-		let _ = &commands.entity(falling_tile_entity).remove::<FallingTile>();
+	if !timer.0.tick(time.delta()).just_finished() {
+		return;
+	}
+	let mut tuples = vec![];
+	for (entity, tile, falling_tile) in q_falling_tile.iter_mut() {
+		tuples.push((entity, tile, falling_tile.0));
+	}
+	if tuples.len() == 0 {
+		return;
+	}
+	tuples.sort_by(|a, b| a.2.cmp(&b.2));
+	for tuple in tuples {
+		let current_position = tuple.1.coordinate.as_tile_coord();
+		let down = current_position.moved(&Vec2::NEG_Y);
+		match map.get_tile(down) {
+			Ok(opt) => match opt {
+				Some(_) => {
+					let _ = &commands.entity(tuple.0).remove::<FallingTile>();
+					//slide
+				}
+				None => {
+					let e =
+						create_tile_entity(&mut commands, &asset_server, down, tuple.1.tile_type);
+					if let Err(_) = map.set_tile(&mut commands, current_position, None) {
+						//unloaded chunk
+					};
+					commands.entity(e).insert(FallingTile(down.y_i32()));
+					if let Err(_) = map.set_tile(&mut commands, down, Some(e)) {
+						//unloaded chunk
+					};
+				}
+			},
+			Err(_) => {
+				let _ = &commands.entity(tuple.0).remove::<FallingTile>(); //unloaded chunk
+				continue;
+			}
+		};
 	}
 }
 

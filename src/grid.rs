@@ -115,9 +115,8 @@ impl Map {
 			None => return Err(()), // chunk not loaded
 		};
 		let chunklocal = coord.as_chunklocal_coord();
-
-		if let Some(prev_tile_ent) = chunk.tiles.remove(&(chunklocal.x_u8(), chunklocal.y_u8())) {
-			commands.entity(prev_tile_ent).despawn_recursive();
+		if let Some(e) = chunk.tiles.remove(&(chunklocal.x_u8(), chunklocal.y_u8())) {
+			commands.entity(e).despawn_recursive();
 		}
 		if let Some(v) = tile {
 			chunk

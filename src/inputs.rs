@@ -160,15 +160,15 @@ fn mouse_events_system(
 			}
 		}
 		if input.pressed(MouseButton::Right) {
-			let tile_coord = world_coord.as_tile_coord();
-			let e = create_tile_entity(
-				&mut commands,
-				&asset_server,
-				tile_coord,
-				TileType::DebugBrown,
-			);
-			let _ = map.set_tile(&mut commands, tile_coord, Some(e));
-			/*
+			//let tile_coord = world_coord.as_tile_coord();
+			//let e = create_tile_entity(
+			//	&mut commands,
+			//	&asset_server,
+			//	tile_coord,
+			//	TileType::DebugBrown,
+			//);
+			//let _ = map.set_tile(&mut commands, tile_coord, Some(e));
+			///*
 			let tile_coord = world_coord.as_tile_coord();
 			let bottom_left = tile_coord.moved(&Vec2::NEG_ONE);
 			let top_right = tile_coord.moved(&Vec2::ONE);
@@ -177,7 +177,7 @@ fn mouse_events_system(
 					ev_updatetile.send(UpdateTilePhysicsEvent(Coordinate::Tile { x, y }));
 				}
 			}
-			*/
+			//*/
 		}
 	}
 }
