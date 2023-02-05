@@ -1,13 +1,14 @@
 use bevy::{
 	prelude::{
-		App, AssetServer, Commands, Entity, EventReader, Plugin, Query, Res, ResMut, Vec2, With,
+		App, AssetServer, Commands, Entity, EventReader, EventWriter, Plugin, Query, Res, ResMut,
+		Vec2,
 	},
 	time::Time,
 };
 
 use crate::{
 	grid::{Coordinate, Map},
-	tiles::{create_tile_entity, FallingTile, Tile},
+	tiles::{create_tile_entity, FallingTile, Tile, WeightedTile},
 	TickTimer,
 };
 
@@ -62,51 +63,96 @@ pub fn update_tile_physics(
 }
 
 fn apply_gravity(
-	mut q_falling_tile: Query<(Entity, &Tile, &FallingTile)>,
+	mut q_falling_tile: Query<(Entity, &Tile, &WeightedTile, &FallingTile)>,
 	mut map: ResMut<Map>,
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
 	time: Res<Time>,
 	mut timer: ResMut<TickTimer>,
+	mut ev_updatetile: EventWriter<UpdateTilePhysicsEvent>,
 ) {
 	if !timer.0.tick(time.delta()).just_finished() {
 		return;
 	}
 	let mut tuples = vec![];
-	for (entity, tile, falling_tile) in q_falling_tile.iter_mut() {
-		tuples.push((entity, tile, falling_tile.0));
+	for (entity, tile, weighted_tile, falling_tile) in q_falling_tile.iter_mut() {
+		tuples.push((entity, tile, weighted_tile, falling_tile.0));
 	}
 	if tuples.len() == 0 {
 		return;
 	}
-	tuples.sort_by(|a, b| a.2.cmp(&b.2));
+	tuples.sort_by(|a, b| a.3.cmp(&b.3));
 	for tuple in tuples {
 		let current_position = tuple.1.coordinate.as_tile_coord();
-		let down = current_position.moved(&Vec2::NEG_Y);
-		match map.get_tile(down) {
+		match get_fall_coord(map.as_ref(), current_position, tuple.2.granularity) {
 			Ok(opt) => match opt {
-				Some(_) => {
-					let _ = &commands.entity(tuple.0).remove::<FallingTile>();
-					//slide
+				Some(coord) => {
+					let e =
+						create_tile_entity(&mut commands, &asset_server, coord, tuple.1.tile_type);
+					if let Err(_) = map.set_tile(&mut commands, current_position, None) {
+						continue;
+						//unloaded chunk
+					};
+					commands.entity(e).insert(FallingTile(coord.y_i32()));
+					if let Err(_) = map.set_tile(&mut commands, coord, Some(e)) {
+						continue;
+						//unloaded chunk
+					};
+					for c in current_position.get_neighboring(1) {
+						ev_updatetile.send(UpdateTilePhysicsEvent(c));
+					}
 				}
 				None => {
-					let e =
-						create_tile_entity(&mut commands, &asset_server, down, tuple.1.tile_type);
-					if let Err(_) = map.set_tile(&mut commands, current_position, None) {
-						//unloaded chunk
-					};
-					commands.entity(e).insert(FallingTile(down.y_i32()));
-					if let Err(_) = map.set_tile(&mut commands, down, Some(e)) {
-						//unloaded chunk
-					};
+					let _ = &commands.entity(tuple.0).remove::<FallingTile>();
+					continue;
 				}
 			},
-			Err(_) => {
-				let _ = &commands.entity(tuple.0).remove::<FallingTile>(); //unloaded chunk
-				continue;
-			}
+			Err(()) => continue, //unloaded chunk
 		};
 	}
+}
+
+fn get_fall_coord(
+	map: &Map,
+	current_position: Coordinate,
+	granularity: u8,
+) -> Result<Option<Coordinate>, ()> {
+	let current_position = current_position.as_tile_coord();
+	for x_abs in 0..=granularity {
+		let mut left_blocked = false;
+		let mut right_blocked = false;
+		for m in [-1, 1] {
+			let x_i8 = x_abs as i8 * m as i8;
+			let x_f32 = x_i8 as f32;
+			if x_i8 != 0 {
+				match map.get_tile(current_position.moved(&Vec2::new(x_f32, 0.0))) {
+					Ok(opt) => match opt {
+						Some(_) => {
+							if m == -1 {
+								left_blocked = true;
+							} else {
+								right_blocked = true;
+							}
+						}
+						None => (),
+					},
+					Err(()) => return Err(()),
+				}
+			}
+			let new_coord = current_position.moved(&Vec2::new(x_f32, -1.0));
+			match map.get_tile(new_coord) {
+				Ok(opt) => match opt {
+					Some(_) => continue,
+					None => return Ok(Some(new_coord)),
+				},
+				Err(()) => return Err(()),
+			}
+		}
+		if left_blocked && right_blocked {
+			return Ok(None);
+		}
+	}
+	Ok(None)
 }
 
 pub struct UpdateTilePhysicsEvent(pub Coordinate);

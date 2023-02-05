@@ -1,6 +1,7 @@
 use crate::{
 	playerphysics::{Collider, Position},
 	players::Player,
+	tilephysics::UpdateTilePhysicsEvent,
 	tiles::{create_tile_entity, Tile, TileType, WeightedTile},
 	worldgen::tiletype_at,
 	CHUNK_SIZE, RENDER_DISTANCE, TILE_SIZE, UNRENDER_DISTANCE,
@@ -8,8 +9,8 @@ use crate::{
 use bevy::{
 	prelude::{
 		App, AssetServer, BuildChildren, Children, Commands, Component, Deref, DerefMut,
-		DespawnRecursiveExt, Entity, EventReader, IVec2, Plugin, Query, Res, ResMut, Resource,
-		Transform, Vec2, Vec3, VisibilityBundle, With,
+		DespawnRecursiveExt, Entity, EventReader, EventWriter, IVec2, Plugin, Query, Res, ResMut,
+		Resource, Transform, Vec2, Vec3, VisibilityBundle, With,
 	},
 	transform::TransformBundle,
 	utils::hashbrown::HashMap,
@@ -283,6 +284,16 @@ impl Coordinate {
 			Coordinate::ChunkLocal { x: _, y: _ } => panic!("Tried to move ChunkLocal coordinate"),
 		}
 	}
+
+	pub fn get_neighboring(&self, size: i32) -> Vec<Coordinate> {
+		let mut v = vec![];
+		for x in -size..=size {
+			for y in -size..=size {
+				v.push(self.moved(&Vec2::new(x as f32, y as f32)));
+			}
+		}
+		v
+	}
 }
 
 pub fn spawn_chunk(
@@ -411,6 +422,7 @@ fn regions_overlap(region_1: &Region, region_2: &Region) -> bool {
 
 fn destroy_tile(
 	mut ev_destroy: EventReader<DestroyTileEvent>,
+	mut ev_update: EventWriter<UpdateTilePhysicsEvent>,
 	mut map: ResMut<Map>,
 	mut commands: Commands,
 ) {
@@ -424,6 +436,9 @@ fn destroy_tile(
 			{
 				commands.entity(tile).despawn_recursive();
 			}
+		}
+		for c in ev.0.as_tile_coord().get_neighboring(1) {
+			ev_update.send(UpdateTilePhysicsEvent(c));
 		}
 	}
 }
