@@ -3,6 +3,7 @@ mod inputs;
 mod playerphysics;
 mod players;
 mod settings;
+mod sprites;
 mod tilephysics;
 mod tiles;
 mod worldgen;
@@ -14,6 +15,7 @@ use inputs::Inputs;
 use playerphysics::{PlayerPhysics, Velocity};
 use players::{Player, PlayerBundle, Players};
 use settings::Settings;
+use sprites::{Sprites, SpritesPlugin};
 use tilephysics::TilePhysics;
 
 const WINDOW_DEFAULT_WIDTH: f32 = 1280.0;
@@ -64,6 +66,7 @@ fn main() {
 		.add_plugin(PlayerPhysics)
 		.add_plugin(TilePhysics)
 		.add_plugin(Players)
+		.add_plugin(SpritesPlugin)
 		.add_startup_system(startup)
 		.insert_resource(Settings {
 			..Default::default()
@@ -76,7 +79,7 @@ fn main() {
 		.run();
 }
 
-fn startup(mut commands: Commands, mut windows: ResMut<Windows>, asset_server: Res<AssetServer>) {
+fn startup(mut commands: Commands, mut windows: ResMut<Windows>, sprites: Res<Sprites>) {
 	let mut projection = OrthographicProjection::default();
 	projection.scale = 0.5;
 	commands.spawn((
@@ -90,7 +93,7 @@ fn startup(mut commands: Commands, mut windows: ResMut<Windows>, asset_server: R
 	commands.spawn((
 		SpriteBundle {
 			transform: Transform::from_xyz(0.0, 0.0, -100.0),
-			texture: asset_server.load("cursor.png"),
+			texture: sprites.cursor.clone(),
 			sprite: Sprite {
 				..Default::default()
 			},
@@ -106,7 +109,7 @@ fn startup(mut commands: Commands, mut windows: ResMut<Windows>, asset_server: R
 	commands.spawn((
 		SpriteBundle {
 			transform: Transform::from_translation(Vec3::ZERO),
-			texture: asset_server.load("player.png"),
+			texture: sprites.player.clone(),
 			..Default::default()
 		},
 		PlayerBundle {
