@@ -1,7 +1,7 @@
 use crate::{
 	grid::{region_collides, Chunk, Region},
 	players::OnGround,
-	Player, GRAVITY_SCALE, PLAYER_SIZE, TERMINAL_VELOCITY, TILE_SIZE,
+	Player, GRAVITY_SCALE, PLAYER_SIZE, PLAYER_UNSTUCK_NUDGE_SPEED, TERMINAL_VELOCITY, TILE_SIZE,
 };
 use bevy::{
 	prelude::{
@@ -72,9 +72,6 @@ fn apply_velocity(
 	mut player_query: Query<(&mut Position, &mut Velocity, &mut OnGround), With<Player>>,
 ) {
 	for (mut player_position, mut player_velocity, mut on_ground) in &mut player_query {
-		if player_velocity.x == 0.0 && player_velocity.y == 0.0 {
-			continue;
-		}
 		let player_size_halved_x = PLAYER_SIZE.x as f32 * 0.5;
 		let player_size_halved_y = PLAYER_SIZE.y as f32 * 0.5;
 		let current_player_region = Region::from_size(
@@ -86,7 +83,38 @@ fn apply_velocity(
 		);
 		if region_collides(&current_player_region, &q_colliders, &q_chunks) {
 			on_ground.0 = false;
-			player_velocity.y = 1.0;
+			player_velocity.0 = Vec2::ZERO;
+			'outer: for m in [0.5, 1.0, 1.5] {
+				for t in [
+					// nudge direction priority order
+					(0, -1),  // bottom
+					(-1, 0),  // left
+					(1, 0),   // right
+					(-1, -1), // bottom left
+					(1, -1),  // bottom right
+					(0, 1),   // top
+					(-1, 1),  // top left
+					(1, 1),   // top right
+				] {
+					if !region_collides(
+						&current_player_region.moved(&Vec2::new(
+							t.0 as f32 * TILE_SIZE.x as f32 * m,
+							t.1 as f32 * TILE_SIZE.y as f32 * m,
+						)),
+						&q_colliders,
+						&q_chunks,
+					) {
+						let dir = Vec2::new(
+							t.0 as f32 * PLAYER_UNSTUCK_NUDGE_SPEED,
+							t.1 as f32 * PLAYER_UNSTUCK_NUDGE_SPEED,
+						);
+						player_position.0 += dir * time.delta_seconds();
+						break 'outer;
+					}
+				}
+			}
+		}
+		if player_velocity.x == 0.0 && player_velocity.y == 0.0 {
 			continue;
 		}
 		let delta_y = player_velocity.y * time.delta_seconds();

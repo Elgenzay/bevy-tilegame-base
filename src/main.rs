@@ -30,6 +30,8 @@ const PLAYER_SIZE: UVec2 = UVec2::new(20, 36);
 const PLAYER_ACCEL: f32 = 1000.0;
 const PLAYER_SPEED: f32 = 100.0;
 const PLAYER_JUMP_FORCE: f32 = 200.0;
+const PLAYER_UNSTUCK_NUDGE_SPEED: f32 = 50.0;
+
 const AIR_FRICTION: f32 = 15.0;
 const AIR_CONTROL: f32 = 0.1;
 const GRAVITY_SCALE: f32 = 400.0;
