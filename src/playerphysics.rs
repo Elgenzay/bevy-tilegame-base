@@ -5,7 +5,7 @@ use crate::{
 };
 use bevy::{
 	prelude::{
-		App, Children, Component, Deref, DerefMut, Plugin, Query, Res, Transform, Vec2, Vec3, With,
+		App, Children, Component, Deref, DerefMut, Plugin, Query, Res, Transform, Vec2, With,
 	},
 	time::Time,
 };

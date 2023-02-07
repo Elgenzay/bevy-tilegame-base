@@ -19,7 +19,7 @@ impl Plugin for Players {
 #[derive(Component)]
 pub enum Player {
 	Local,
-	Remote,
+	_Remote,
 }
 
 impl Default for Player {

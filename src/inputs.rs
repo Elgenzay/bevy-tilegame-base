@@ -1,15 +1,14 @@
 use crate::{
-	grid::{Coordinate, DestroyTileEvent, Map},
+	grid::{Coordinate, DestroyTileEvent},
 	players::{Jumping, MoveDirection, Player},
 	settings::Settings,
 	tilephysics::UpdateTilePhysicsEvent,
-	tiles::{create_tile_entity, TileType},
 	Cursor,
 };
 use bevy::{
 	prelude::{
-		App, AssetServer, Camera, Commands, EventWriter, GlobalTransform, Input, KeyCode,
-		MouseButton, Plugin, Query, Res, ResMut, Transform, Vec2, Vec3, With,
+		App, Camera, EventWriter, GlobalTransform, Input, KeyCode, MouseButton, Plugin, Query, Res,
+		Transform, Vec2, Vec3, With,
 	},
 	render::camera::RenderTarget,
 	window::Windows,
@@ -117,12 +116,9 @@ fn mouse_events_system(
 	wnds: Res<Windows>,
 	q_camera: Query<(&Camera, &GlobalTransform), With<Camera>>,
 	mut q_cursor: Query<&mut Transform, With<Cursor>>,
-	mut map: ResMut<Map>,
 	input: Res<Input<MouseButton>>,
 	mut ev_destroytile: EventWriter<DestroyTileEvent>,
 	mut ev_updatetile: EventWriter<UpdateTilePhysicsEvent>,
-	mut commands: Commands,
-	asset_server: Res<AssetServer>,
 ) {
 	let (camera, camera_transform) = match q_camera.get_single() {
 		Ok(v) => v,
@@ -168,7 +164,6 @@ fn mouse_events_system(
 			//	TileType::DebugBrown,
 			//);
 			//let _ = map.set_tile(&mut commands, tile_coord, Some(e));
-			///*
 			let tile_coord = world_coord.as_tile_coord();
 			let bottom_left = tile_coord.moved(&Vec2::NEG_ONE);
 			let top_right = tile_coord.moved(&Vec2::ONE);
@@ -177,7 +172,6 @@ fn mouse_events_system(
 					ev_updatetile.send(UpdateTilePhysicsEvent(Coordinate::Tile { x, y }));
 				}
 			}
-			//*/
 		}
 	}
 }

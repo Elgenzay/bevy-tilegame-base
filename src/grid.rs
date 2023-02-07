@@ -2,7 +2,7 @@ use crate::{
 	playerphysics::{Collider, Position},
 	players::Player,
 	tilephysics::UpdateTilePhysicsEvent,
-	tiles::{create_tile_entity, Tile, TileType, WeightedTile},
+	tiles::{create_tile_entity, WeightedTile},
 	worldgen::tiletype_at,
 	CHUNK_SIZE, RENDER_DISTANCE, TILE_SIZE, UNRENDER_DISTANCE,
 };
