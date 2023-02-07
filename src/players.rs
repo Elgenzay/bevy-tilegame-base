@@ -1,7 +1,7 @@
 use crate::{
 	playerphysics::{Gravity, Position},
-	Cursor, MainCamera, Velocity, AIR_CONTROL, AIR_FRICTION, PLAYER_ACCEL, PLAYER_JUMP_FORCE,
-	PLAYER_SPEED,
+	Cursor, MainCamera, Velocity, PLAYER_ACCEL, PLAYER_AIR_CONTROL, PLAYER_AIR_FRICTION,
+	PLAYER_JUMP_FORCE, PLAYER_SPEED,
 };
 use bevy::{
 	prelude::{App, Bundle, Component, Plugin, Query, Res, Transform, Vec3, With, Without},
@@ -136,13 +136,13 @@ fn move_player(
 			velocity.x += direction * PLAYER_ACCEL * time.delta_seconds();
 		} else {
 			if direction != 0.0 {
-				velocity.x += direction * PLAYER_ACCEL * AIR_CONTROL * time.delta_seconds();
+				velocity.x += direction * PLAYER_ACCEL * PLAYER_AIR_CONTROL * time.delta_seconds();
 			}
 			velocity.x = velocity.x.clamp(-PLAYER_SPEED, PLAYER_SPEED);
 			if velocity.x > 0.0 {
-				velocity.x -= AIR_FRICTION * time.delta_seconds();
+				velocity.x -= PLAYER_AIR_FRICTION * time.delta_seconds();
 			} else if velocity.x < 0.0 {
-				velocity.x += AIR_FRICTION * time.delta_seconds();
+				velocity.x += PLAYER_AIR_FRICTION * time.delta_seconds();
 			}
 		}
 		velocity.x = velocity.x.clamp(-PLAYER_SPEED, PLAYER_SPEED);

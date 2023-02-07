@@ -47,6 +47,7 @@ impl TileType {
 
 	pub fn get_granularity(&self) -> u8 {
 		match self {
+			TileType::DebugGray => 1,
 			_ => 0,
 		}
 	}
