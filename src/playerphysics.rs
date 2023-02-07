@@ -117,11 +117,9 @@ fn apply_velocity(
 		if player_velocity.x == 0.0 && player_velocity.y == 0.0 {
 			continue;
 		}
+		let delta_x = player_velocity.x * time.delta_seconds();
 		let delta_y = player_velocity.y * time.delta_seconds();
-		let new_pos = Vec2::new(
-			player_position.0.x + (player_velocity.x * time.delta_seconds()),
-			player_position.0.y + delta_y,
-		);
+		let new_pos = Vec2::new(player_position.0.x + delta_x, player_position.0.y + delta_y);
 		let new_player_region = Region::from_size(
 			&Vec2::new(
 				new_pos.x - player_size_halved_x,
@@ -131,6 +129,14 @@ fn apply_velocity(
 		);
 		if !region_collides(&new_player_region, &q_colliders, &q_chunks) {
 			player_position.0 = new_pos;
+		} else if !region_collides(
+			&current_player_region.moved(&Vec2::new(delta_x, 0.0)),
+			&q_colliders,
+			&q_chunks,
+		) {
+			//head bonk. maintain x vel
+			player_velocity.y = 0.0;
+			player_position.0.x = new_pos.x;
 		} else if player_velocity.x != 0.0 {
 			let step_up_region = new_player_region.moved(&Vec2::new(0.0, TILE_SIZE.y as f32));
 			if on_ground.0 && !region_collides(&step_up_region, &q_colliders, &q_chunks) {
@@ -139,6 +145,7 @@ fn apply_velocity(
 				player_velocity.x = 0.0;
 				let new_player_region = current_player_region.moved(&Vec2::new(0.0, delta_y));
 				if !region_collides(&new_player_region, &q_colliders, &q_chunks) {
+					//stepping up
 					player_position.0.y += delta_y;
 				} else {
 					player_velocity.y = 0.0;
