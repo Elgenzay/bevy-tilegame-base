@@ -1,11 +1,12 @@
 use bevy::{
-	prelude::{AssetServer, Commands, Component, Entity, Handle, Image, Transform, Vec2, Vec3},
+	prelude::{Commands, Component, Entity, Transform, Vec2, Vec3},
 	sprite::SpriteBundle,
 };
 
 use crate::{
-	grid::{Coordinate, Region},
+	grid::{Coordinate, Map, Region},
 	playerphysics::Collider,
+	sprites::Sprites,
 	CHUNK_SIZE, TILE_SIZE,
 };
 
@@ -64,9 +65,10 @@ pub struct FallingTile(pub i32);
 
 pub fn create_tile_entity(
 	commands: &mut Commands,
-	asset_server: &AssetServer,
 	coord: Coordinate,
 	tile_type: TileType,
+	sprites: &Sprites,
+	_map: &Map, //todo: outlines
 ) -> Entity {
 	let tilesize_x_f32 = TILE_SIZE.x as f32;
 	let tilesize_y_f32 = TILE_SIZE.y as f32;
@@ -74,8 +76,19 @@ pub fn create_tile_entity(
 	let chunklocal_coord = coord.as_chunklocal_coord();
 	let chunk_coord = coord.as_chunk_coord();
 
-	let texture_handle: Handle<Image> =
-		asset_server.load(format!("tiles/{}.png", tile_type.get_name()));
+	let texture_handle = sprites.tiles.get(&tile_type.get_name()).unwrap();
+	let mut i = tile_coord.x_i32() * tile_coord.y_i32();
+	if i == 0 {
+		i = tile_coord.x_i32() + tile_coord.y_i32();
+	}
+
+	// George Marsaglia's Xorshift
+	i ^= i << 13;
+	i ^= i >> 17;
+	i ^= i << 5;
+
+	i = i / 10;
+	i = i.abs() % texture_handle.len() as i32;
 
 	let tile_entity = commands
 		.spawn((
@@ -85,7 +98,7 @@ pub fn create_tile_entity(
 				coordinate: tile_coord,
 			},
 			SpriteBundle {
-				texture: texture_handle.clone(),
+				texture: texture_handle.get(i as usize).unwrap().clone(),
 				transform: Transform {
 					translation: Vec3 {
 						x: chunklocal_coord.x_f32() * tilesize_x_f32,

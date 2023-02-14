@@ -1,6 +1,7 @@
 use crate::{
 	playerphysics::{Collider, Position},
 	players::Player,
+	sprites::Sprites,
 	tilephysics::UpdateTilePhysicsEvent,
 	tiles::{create_tile_entity, WeightedTile},
 	worldgen::tiletype_at,
@@ -8,9 +9,9 @@ use crate::{
 };
 use bevy::{
 	prelude::{
-		App, AssetServer, BuildChildren, Children, Commands, Component, Deref, DerefMut,
-		DespawnRecursiveExt, Entity, EventReader, EventWriter, IVec2, Plugin, Query, Res, ResMut,
-		Resource, Transform, Vec2, Vec3, VisibilityBundle, With,
+		App, BuildChildren, Children, Commands, Component, Deref, DerefMut, DespawnRecursiveExt,
+		Entity, EventReader, EventWriter, IVec2, Plugin, Query, Res, ResMut, Resource, Transform,
+		Vec2, Vec3, VisibilityBundle, With,
 	},
 	transform::TransformBundle,
 	utils::hashbrown::HashMap,
@@ -298,9 +299,9 @@ impl Coordinate {
 
 pub fn spawn_chunk(
 	commands: &mut Commands,
-	asset_server: &AssetServer,
 	chunk_pos: IVec2,
 	map: &mut Map,
+	sprites: &Sprites,
 ) -> Entity {
 	let chunk_entity = commands.spawn_empty().id();
 	let mut mapchunk_tiles = HashMap::new();
@@ -316,12 +317,13 @@ pub fn spawn_chunk(
 			};
 			let tile_entity = create_tile_entity(
 				commands,
-				asset_server,
 				Coordinate::Tile {
 					x: tile_x,
 					y: tile_y,
 				},
 				tile_type,
+				&sprites,
+				&map,
 			);
 
 			if tile_type.is_weighted() {
@@ -447,8 +449,8 @@ fn render_chunks(
 	q_player: Query<(&Player, &Position)>,
 	mut map: ResMut<Map>,
 	mut commands: Commands,
-	asset_server: Res<AssetServer>,
 	q_chunks: Query<&Chunk>,
+	sprites: Res<Sprites>,
 ) {
 	for (player, position) in q_player.iter() {
 		if let Player::Local = player {
@@ -473,7 +475,7 @@ fn render_chunks(
 					if map.0.contains_key(&(x, y)) {
 						continue;
 					}
-					spawn_chunk(&mut commands, &asset_server, IVec2::new(x, y), &mut map);
+					spawn_chunk(&mut commands, IVec2::new(x, y), &mut map, &sprites);
 				}
 			}
 		}

@@ -1,13 +1,11 @@
 use bevy::{
-	prelude::{
-		App, AssetServer, Commands, Entity, EventReader, EventWriter, Plugin, Query, Res, ResMut,
-		Vec2,
-	},
+	prelude::{App, Commands, Entity, EventReader, EventWriter, Plugin, Query, Res, ResMut, Vec2},
 	time::Time,
 };
 
 use crate::{
 	grid::{Coordinate, Map},
+	sprites::Sprites,
 	tiles::{create_tile_entity, FallingTile, Tile, WeightedTile},
 	TickTimer,
 };
@@ -27,7 +25,6 @@ pub fn update_tile_physics(
 	mut ev_update: EventReader<UpdateTilePhysicsEvent>,
 	mut commands: Commands,
 	q_tiles: Query<&Tile>,
-	//world: &World,
 ) {
 	for ev in ev_update.iter() {
 		let tiles = match ev.0 {
@@ -66,10 +63,10 @@ fn apply_gravity(
 	mut q_falling_tile: Query<(Entity, &Tile, &WeightedTile, &FallingTile)>,
 	mut map: ResMut<Map>,
 	mut commands: Commands,
-	asset_server: Res<AssetServer>,
 	time: Res<Time>,
 	mut timer: ResMut<TickTimer>,
 	mut ev_updatetile: EventWriter<UpdateTilePhysicsEvent>,
+	sprites: Res<Sprites>,
 ) {
 	if !timer.0.tick(time.delta()).just_finished() {
 		return;
@@ -88,7 +85,7 @@ fn apply_gravity(
 			Ok(opt) => match opt {
 				Some(coord) => {
 					let e =
-						create_tile_entity(&mut commands, &asset_server, coord, tuple.1.tile_type);
+						create_tile_entity(&mut commands, coord, tuple.1.tile_type, &sprites, &map);
 					if let Err(_) = map.set_tile(&mut commands, current_position, None) {
 						continue;
 						//unloaded chunk
