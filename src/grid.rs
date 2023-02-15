@@ -268,6 +268,10 @@ impl Coordinate {
 		}
 	}
 
+	pub fn as_vec2(&self) -> Vec2 {
+		Vec2::new(self.x_f32(), self.y_f32())
+	}
+
 	pub fn moved(&self, movement: &Vec2) -> Coordinate {
 		match self {
 			Coordinate::World { x, y } => Coordinate::World {
@@ -294,6 +298,18 @@ impl Coordinate {
 			}
 		}
 		v
+	}
+
+	pub const ZERO: Self = Self::Tile { x: 0, y: 0 };
+}
+
+impl PartialEq for Coordinate {
+	fn eq(&self, other: &Self) -> bool {
+		if self.x_i32() == other.x_i32() && self.y_i32() == other.y_i32() {
+			true
+		} else {
+			false
+		}
 	}
 }
 

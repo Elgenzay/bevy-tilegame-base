@@ -31,10 +31,16 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 		}
 		tiles.insert(tilename, images);
 	}
+	let mut tile_outlines = vec![];
+	for x in 1..=47 {
+		tile_outlines.push(asset_server.load(format!("tile_outlines/{}.png", x.to_string())));
+	}
+
 	commands.insert_resource(Sprites {
 		cursor: asset_server.load("cursor.png"),
 		player: asset_server.load("player.png"),
 		tiles,
+		tile_outlines,
 	});
 }
 
@@ -43,4 +49,5 @@ pub struct Sprites {
 	pub cursor: Handle<Image>,
 	pub player: Handle<Image>,
 	pub tiles: HashMap<String, Vec<Handle<Image>>>,
+	pub tile_outlines: Vec<Handle<Image>>,
 }
