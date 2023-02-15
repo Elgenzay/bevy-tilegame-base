@@ -1,10 +1,10 @@
 use bevy::{
-	prelude::{BuildChildren, Commands, Component, Entity, Transform, Vec2, Vec3},
+	prelude::{BuildChildren, Commands, Component, Transform, Vec2, Vec3},
 	sprite::SpriteBundle,
 };
 
 use crate::{
-	grid::{Coordinate, Map, Region},
+	grid::{Coordinate, Map, MapTile, Region},
 	playerphysics::Collider,
 	sprites::Sprites,
 	CHUNK_SIZE, TILE_SIZE,
@@ -91,13 +91,13 @@ impl ConnectedNeighbors {
 	}
 }
 
-pub fn create_tile_entity(
+pub fn create_tile(
 	commands: &mut Commands,
 	coord: Coordinate,
 	tile_type: TileType,
 	sprites: &Sprites,
 	map: &Map, //todo: outlines
-) -> Entity {
+) -> MapTile {
 	let tilesize_x_f32 = TILE_SIZE.x as f32;
 	let tilesize_y_f32 = TILE_SIZE.y as f32;
 	let tile_coord = coord.as_tile_coord();
@@ -214,5 +214,8 @@ pub fn create_tile_entity(
 			liquid: tile_type.is_liquid(),
 		});
 	}
-	tile_entity
+	MapTile {
+		entity: tile_entity,
+		outline,
+	}
 }

@@ -6,7 +6,7 @@ use bevy::{
 use crate::{
 	grid::{Coordinate, Map},
 	sprites::Sprites,
-	tiles::{create_tile_entity, FallingTile, Tile, WeightedTile},
+	tiles::{create_tile, FallingTile, Tile, WeightedTile},
 	TickTimer,
 };
 
@@ -15,14 +15,14 @@ pub struct TilePhysics;
 impl Plugin for TilePhysics {
 	fn build(&self, app: &mut App) {
 		app.add_system(apply_gravity)
-			.add_event::<UpdateTilePhysicsEvent>()
+			.add_event::<UpdateTileEvent>()
 			.add_system(update_tile_physics);
 	}
 }
 
 pub fn update_tile_physics(
 	map: Res<Map>,
-	mut ev_update: EventReader<UpdateTilePhysicsEvent>,
+	mut ev_update: EventReader<UpdateTileEvent>,
 	mut commands: Commands,
 	q_tiles: Query<&Tile>,
 ) {
@@ -46,13 +46,13 @@ pub fn update_tile_physics(
 			}
 		};
 		for tile_parent in tiles {
-			let tile = match q_tiles.get(*tile_parent) {
+			let tile = match q_tiles.get(tile_parent.entity) {
 				Ok(v) => v,
 				Err(_) => continue,
 			};
 			if tile.tile_type.is_weighted() {
 				commands
-					.entity(*tile_parent)
+					.entity(tile_parent.entity)
 					.insert(FallingTile(tile.coordinate.as_tile_coord().y_i32()));
 			}
 		}
@@ -65,7 +65,7 @@ fn apply_gravity(
 	mut commands: Commands,
 	time: Res<Time>,
 	mut timer: ResMut<TickTimer>,
-	mut ev_updatetile: EventWriter<UpdateTilePhysicsEvent>,
+	mut ev_updatetile: EventWriter<UpdateTileEvent>,
 	sprites: Res<Sprites>,
 ) {
 	if !timer.0.tick(time.delta()).just_finished() {
@@ -84,19 +84,20 @@ fn apply_gravity(
 		match get_fall_coord(map.as_ref(), current_position, tuple.2.granularity) {
 			Ok(opt) => match opt {
 				Some(coord) => {
-					let e =
-						create_tile_entity(&mut commands, coord, tuple.1.tile_type, &sprites, &map);
+					let tile = create_tile(&mut commands, coord, tuple.1.tile_type, &sprites, &map);
 					if let Err(_) = map.set_tile(&mut commands, current_position, None) {
 						continue;
 						//unloaded chunk
 					};
-					commands.entity(e).insert(FallingTile(coord.y_i32()));
-					if let Err(_) = map.set_tile(&mut commands, coord, Some(e)) {
+					commands
+						.entity(tile.entity)
+						.insert(FallingTile(coord.y_i32()));
+					if let Err(_) = map.set_tile(&mut commands, coord, Some(tile)) {
 						continue;
 						//unloaded chunk
 					};
 					for c in current_position.get_neighboring(1) {
-						ev_updatetile.send(UpdateTilePhysicsEvent(c));
+						ev_updatetile.send(UpdateTileEvent(c));
 					}
 				}
 				None => {
@@ -152,4 +153,4 @@ fn get_fall_coord(
 	Ok(None)
 }
 
-pub struct UpdateTilePhysicsEvent(pub Coordinate);
+pub struct UpdateTileEvent(pub Coordinate);

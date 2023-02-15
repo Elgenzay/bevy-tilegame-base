@@ -2,7 +2,7 @@ use crate::{
 	grid::{Coordinate, DestroyTileEvent},
 	players::{Jumping, MoveDirection, Player},
 	settings::Settings,
-	tilephysics::UpdateTilePhysicsEvent,
+	tilephysics::UpdateTileEvent,
 	Cursor,
 };
 use bevy::{
@@ -118,7 +118,7 @@ fn mouse_events_system(
 	mut q_cursor: Query<&mut Transform, With<Cursor>>,
 	input: Res<Input<MouseButton>>,
 	mut ev_destroytile: EventWriter<DestroyTileEvent>,
-	mut ev_updatetile: EventWriter<UpdateTilePhysicsEvent>,
+	mut ev_updatetile: EventWriter<UpdateTileEvent>,
 ) {
 	let (camera, camera_transform) = match q_camera.get_single() {
 		Ok(v) => v,
@@ -169,7 +169,7 @@ fn mouse_events_system(
 			let top_right = tile_coord.moved(&Vec2::ONE);
 			for x in bottom_left.x_i32()..=top_right.x_i32() {
 				for y in bottom_left.y_i32()..=top_right.y_i32() {
-					ev_updatetile.send(UpdateTilePhysicsEvent(Coordinate::Tile { x, y }));
+					ev_updatetile.send(UpdateTileEvent(Coordinate::Tile { x, y }));
 				}
 			}
 		}

@@ -2,8 +2,8 @@ use crate::{
 	playerphysics::{Collider, Position},
 	players::Player,
 	sprites::Sprites,
-	tilephysics::UpdateTilePhysicsEvent,
-	tiles::{create_tile_entity, WeightedTile},
+	tilephysics::UpdateTileEvent,
+	tiles::{create_tile, WeightedTile},
 	worldgen::tiletype_at,
 	CHUNK_SIZE, RENDER_DISTANCE, TILE_SIZE, UNRENDER_DISTANCE,
 };
@@ -63,7 +63,7 @@ impl Region {
 pub struct Map(HashMap<(i32, i32), MapChunk>);
 
 impl Map {
-	pub fn get_tile(&self, coord: Coordinate) -> Result<Option<&Entity>, ()> {
+	pub fn get_tile(&self, coord: Coordinate) -> Result<Option<&MapTile>, ()> {
 		match coord {
 			Coordinate::Chunk { x: _, y: _ } => {
 				panic!("Chunk coordinate passed to get_tile() instead of get_tiles()")
@@ -87,7 +87,7 @@ impl Map {
 		Err(()) // chunk not loaded
 	}
 
-	pub fn get_tiles(&self, coord: Coordinate) -> Result<Vec<&Entity>, ()> {
+	pub fn get_tiles(&self, coord: Coordinate) -> Result<Vec<&MapTile>, ()> {
 		match coord {
 			Coordinate::ChunkLocal { x: _, y: _ } => {
 				panic!("ChunkLocal coordinate passed to get_tiles()")
@@ -109,7 +109,7 @@ impl Map {
 		&mut self,
 		commands: &mut Commands,
 		coord: Coordinate,
-		tile: Option<Entity>,
+		tile: Option<MapTile>,
 	) -> Result<(), ()> {
 		let chunk_coord = coord.as_chunk_coord();
 		let chunk = match self.0.get_mut(&(chunk_coord.x_i32(), chunk_coord.y_i32())) {
@@ -117,14 +117,14 @@ impl Map {
 			None => return Err(()), // chunk not loaded
 		};
 		let chunklocal = coord.as_chunklocal_coord();
-		if let Some(e) = chunk.tiles.remove(&(chunklocal.x_u8(), chunklocal.y_u8())) {
-			commands.entity(e).despawn_recursive();
+		if let Some(tile) = chunk.tiles.remove(&(chunklocal.x_u8(), chunklocal.y_u8())) {
+			commands.entity(tile.entity).despawn_recursive();
 		}
-		if let Some(v) = tile {
+		if let Some(tile) = tile {
+			commands.entity(chunk.entity).add_child(tile.entity);
 			chunk
 				.tiles
-				.insert((chunklocal.x_u8(), chunklocal.y_u8()), v);
-			commands.entity(chunk.chunk_entity).add_child(v);
+				.insert((chunklocal.x_u8(), chunklocal.y_u8()), tile);
 		} else {
 			chunk.tiles.remove(&(chunklocal.x_u8(), chunklocal.y_u8()));
 		}
@@ -133,8 +133,13 @@ impl Map {
 }
 
 pub struct MapChunk {
-	chunk_entity: Entity,
-	tiles: HashMap<(u8, u8), Entity>,
+	entity: Entity,
+	tiles: HashMap<(u8, u8), MapTile>,
+}
+
+pub struct MapTile {
+	pub entity: Entity,
+	pub outline: Entity,
 }
 
 #[derive(Clone, Copy)]
@@ -331,7 +336,7 @@ pub fn spawn_chunk(
 				Some(v) => v,
 				None => continue,
 			};
-			let tile_entity = create_tile_entity(
+			let tile = create_tile(
 				commands,
 				Coordinate::Tile {
 					x: tile_x,
@@ -343,13 +348,13 @@ pub fn spawn_chunk(
 			);
 
 			if tile_type.is_weighted() {
-				commands.entity(tile_entity).insert(WeightedTile {
+				commands.entity(tile.entity).insert(WeightedTile {
 					granularity: tile_type.get_granularity(),
 					liquid: tile_type.is_liquid(),
 				});
 			}
-			commands.entity(chunk_entity).add_child(tile_entity);
-			mapchunk_tiles.insert((x, y), tile_entity);
+			commands.entity(chunk_entity).add_child(tile.entity);
+			mapchunk_tiles.insert((x, y), tile);
 		}
 	}
 
@@ -380,12 +385,12 @@ pub fn spawn_chunk(
 		),
 	));
 	if let Some(v) = map.0.get(&(chunk_pos.x, chunk_pos.y)) {
-		commands.entity(v.chunk_entity).despawn_recursive();
+		commands.entity(v.entity).despawn_recursive();
 	}
 	map.0.insert(
 		(chunk_pos.x, chunk_pos.y),
 		MapChunk {
-			chunk_entity,
+			entity: chunk_entity,
 			tiles: mapchunk_tiles,
 		},
 	);
@@ -394,7 +399,7 @@ pub fn spawn_chunk(
 
 pub fn despawn_chunk(commands: &mut Commands, chunk_pos: IVec2, map: &mut Map) {
 	if let Some(v) = map.0.get(&(chunk_pos.x, chunk_pos.y)) {
-		commands.entity(v.chunk_entity).despawn_recursive();
+		commands.entity(v.entity).despawn_recursive();
 	}
 	map.0.remove(&(chunk_pos.x, chunk_pos.y));
 }
@@ -440,7 +445,7 @@ fn regions_overlap(region_1: &Region, region_2: &Region) -> bool {
 
 fn destroy_tile(
 	mut ev_destroy: EventReader<DestroyTileEvent>,
-	mut ev_update: EventWriter<UpdateTilePhysicsEvent>,
+	mut ev_update: EventWriter<UpdateTileEvent>,
 	mut map: ResMut<Map>,
 	mut commands: Commands,
 ) {
@@ -452,11 +457,11 @@ fn destroy_tile(
 				.tiles
 				.remove(&(local_coord.x_u8(), local_coord.y_u8()))
 			{
-				commands.entity(tile).despawn_recursive();
+				commands.entity(tile.entity).despawn_recursive();
 			}
 		}
 		for c in ev.0.as_tile_coord().get_neighboring(1) {
-			ev_update.send(UpdateTilePhysicsEvent(c));
+			ev_update.send(UpdateTileEvent(c));
 		}
 	}
 }
