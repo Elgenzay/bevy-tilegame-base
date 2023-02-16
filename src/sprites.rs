@@ -33,7 +33,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 	}
 	let mut tile_outlines = vec![];
 	for x in 1..=47 {
-		tile_outlines.push(asset_server.load(format!("tile_outlines/{}.png", x.to_string())));
+		tile_outlines
+			.push(asset_server.load(format!("tile_outlines/generic/{}.png", x.to_string())));
 	}
 
 	commands.insert_resource(Sprites {

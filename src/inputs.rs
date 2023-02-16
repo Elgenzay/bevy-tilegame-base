@@ -172,7 +172,13 @@ fn mouse_events_system(
 			let top_right = tile_coord.moved(&Vec2::ONE);
 			for x in bottom_left.x_i32()..=top_right.x_i32() {
 				for y in bottom_left.y_i32()..=top_right.y_i32() {
-					ev_updatetile.send(UpdateTileEvent(Coordinate::Tile { x, y }));
+					if let Ok(opt) = map.get_tile(Coordinate::Tile { x, y }) {
+						if let Some(t) = opt {
+							ev_updatetile.send(UpdateTileEvent(*t));
+						}
+					} else {
+						//unloaded chunk
+					}
 				}
 			}
 		}

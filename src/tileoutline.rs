@@ -91,1131 +91,155 @@ impl ConnectedNeighbors {
 						}
 					} else {
 						if self.top_left {
-							if self.top_right {
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-									22
+							if self.bottom_left {
+								if self.bottom_right {
 								} else {
-									if self.bottom_right {
-									} else {
-									}
-									44
 								}
+								22
 							} else {
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-									22
+								if self.bottom_right {
 								} else {
-									if self.bottom_right {
-									} else {
-									}
-									44
 								}
+								44
 							}
 						} else {
-							if self.top_right {
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-									36
+							if self.bottom_left {
+								if self.bottom_right {
 								} else {
-									if self.bottom_right {
-									} else {
-									}
-									13
 								}
+								36
 							} else {
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-									36
+								if self.bottom_right {
 								} else {
-									if self.bottom_right {
-									} else {
-									}
-									13
 								}
+								13
 							}
 						}
 					}
 				} else {
-					//////
-					// ?0?
-					// .0?
-					// ?0?
 					if self.right {
-						// ?0?
-						// .00
-						// ?0?
-						if self.top_left {
-							// 00?
-							// .00
-							// ?0?
-							if self.top_right {
-								// 000
-								// .00
-								// ?0?
-								if self.bottom_left {
-									// 000
-									// .00
-									// 00?
-									if self.bottom_right {
-										21
-									} else {
-										43
-									}
+						if self.top_right {
+							if self.bottom_left {
+								if self.bottom_right {
+									21
 								} else {
-									// 000
-									// .00
-									// .0?
-									if self.bottom_right {
-										21
-									} else {
-										43
-									}
+									43
 								}
 							} else {
-								// 00.
-								// .00
-								// ?0?
-								if self.bottom_left {
-									if self.bottom_right {
-										35
-									} else {
-										12
-									}
+								if self.bottom_right {
+									21
 								} else {
-									if self.bottom_right {
-										35
-									} else {
-										12
-									}
+									43
 								}
 							}
 						} else {
-							// .0?
-							// .00
-							// ?0?
-							if self.top_right {
-								// .00
-								// .00
-								// ?0?
-								if self.bottom_left {
-									if self.bottom_right {
-										21
-									} else {
-										43
-									}
-								} else {
-									if self.bottom_right {
-										21
-									} else {
-										43
-									}
-								}
+							if self.bottom_right {
+								35
 							} else {
-								// .0.
-								// .00
-								// ?0?
-								if self.bottom_left {
-									if self.bottom_right {
-										35
-									} else {
-										12
-									}
-								} else {
-									if self.bottom_right {
-										35
-									} else {
-										12
-									}
-								}
+								12
 							}
 						}
 					} else {
-						// ?0?
-						// .0.
-						// ?0?
-
-						if self.top_left {
-							// 00?
-							// .0.
-							// ?0?
-							if self.top_right {
-								// 000
-								// .0.
-								// ?0?
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							} else {
-								// 00.
-								// .0.
-								// ?0?
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							}
-						} else {
-							// .0?
-							// .0.
-							// ?0?
-							if self.top_right {
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							} else {
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							}
-						}
 						11
 					}
 				}
 			} else {
-				// ?0?
-				// ?0?
-				// ?.?
 				if self.left {
-					// ?0?
-					// 00?
-					// ?.?
 					if self.right {
-						// ?0?
-						// 000
-						// ?.?
 						if self.top_left {
-							// 00?
-							// 000
-							// ?.?
 							if self.top_right {
-								// 000
-								// 000
-								// ?.?
-								if self.bottom_left {
-									// 000
-									// 000
-									// 0.?
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									// 000
-									// 000
-									// ..?
-									if self.bottom_right {
-									} else {
-									}
-								}
 								30
 							} else {
-								// 00.
-								// 000
-								// ?.?
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
 								46
 							}
 						} else {
-							// .0?
-							// 000
-							// ?.?
 							if self.top_right {
-								// .00
-								// 000
-								// ?.?
-								if self.bottom_left {
-									// .00
-									// 000
-									// 0.?
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
 								45
 							} else {
-								// .0.
-								// 000
-								// ?.?
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
 								5
 							}
 						}
 					} else {
-						// ?0?
-						// 00.
-						// ?.?
 						if self.top_left {
-							// 00?
-							// 00.
-							// ?.?
-
-							if self.top_right {
-								// 000
-								// 00.
-								// ?.?
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							} else {
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							}
 							32
 						} else {
-							// .0?
-							// 00.
-							// ?.?
-							if self.top_right {
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							} else {
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							}
 							10
 						}
 					}
 				} else {
-					//////
-					// ?0?
-					// .0?
-					// ?.?
 					if self.right {
-						// ?0?
-						// .00
-						// ?.?
-						if self.top_left {
-							// 00?
-							// .00
-							// ?.?
-							if self.top_right {
-								// 000
-								// .00
-								// ?.?
-								if self.bottom_left {
-									// 000
-									// .00
-									// 0.?
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									// 000
-									// .00
-									// ..?
-									if self.bottom_right {
-									} else {
-									}
-								}
-								16
-							} else {
-								// 00.
-								// .00
-								// ?.?
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-								9
-							}
+						if self.top_right {
+							16
 						} else {
-							// .0?
-							// .00
-							// ?.?
-							if self.top_right {
-								// .00
-								// .00
-								// ?.?
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-								16
-							} else {
-								// .0.
-								// .00
-								// ?.?
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-								9
-							}
+							9
 						}
 					} else {
-						// ?0?
-						// .0.
-						// ?.?
-
-						if self.top_left {
-							// 00?
-							// .0.
-							// ?.?
-							if self.top_right {
-								// 000
-								// .0.
-								// ?.?
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							} else {
-								// 00.
-								// .0.
-								// ?.?
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							}
-						} else {
-							// .0?
-							// .0.
-							// ?.?
-							if self.top_right {
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							} else {
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							}
-						}
 						7
 					}
 				}
 			}
 		} else {
-			////////////////////////////////////////////////////////////////////////////////////////////
-			//halfway point
 			if self.bottom {
-				// ?.?
-				// ?0?
-				// ?0?
 				if self.left {
-					// ?.?
-					// 00?
-					// ?0?
 					if self.right {
-						// ?.?
-						// 000
-						// ?0?
 						if self.top_left {
-							// 0.?
-							// 000
-							// ?0?
-							if self.top_right {
-								// 0.0
-								// 000
-								// ?0?
-								if self.bottom_left {
-									// 0.0
-									// 000
-									// 00?
-									if self.bottom_right {
-										29
-									} else {
-										38
-									}
+							if self.bottom_left {
+								if self.bottom_right {
+									29
 								} else {
-									// 0.0
-									// 000
-									// .0?
-									if self.bottom_right {
-										37
-									} else {
-										4
-									}
+									38
 								}
 							} else {
-								// 0..
-								// 000
-								// ?0?
-								if self.bottom_left {
-									if self.bottom_right {
-										29
-									} else {
-										38
-									}
+								if self.bottom_right {
+									37
 								} else {
-									if self.bottom_right {
-										37
-									} else {
-										4
-									}
+									4
 								}
 							}
 						} else {
-							// ..?
-							// 000
-							// ?0?
-							if self.top_right {
-								if self.bottom_left {
-									if self.bottom_right {
-										29
-									} else {
-										38
-									}
+							if self.bottom_left {
+								if self.bottom_right {
+									29
 								} else {
-									if self.bottom_right {
-										37
-									} else {
-										4
-									}
+									38
 								}
 							} else {
-								if self.bottom_left {
-									if self.bottom_right {
-										29
-									} else {
-										38
-									}
+								if self.bottom_right {
+									37
 								} else {
-									if self.bottom_right {
-										37
-									} else {
-										4
-									}
+									4
 								}
 							}
 						}
 					} else {
-						// ?.?
-						// 00.
-						// ?0?
-						if self.top_left {
-							// 0.?
-							// 00.
-							// ?0?
-							if self.top_right {
-								// 0.0
-								// 00.
-								// ?0?
-								if self.bottom_left {
-									// 0.0
-									// 00.
-									// 00?
-									if self.bottom_right {
-									} else {
-									}
-									24
-								} else {
-									// 0.0
-									// 00.
-									// .0?
-									if self.bottom_right {
-									} else {
-									}
-									2
-								}
-							} else {
-								// 0..
-								// 00.
-								// ?0?
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-									24
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-									2
-								}
-							}
+						if self.bottom_left {
+							24
 						} else {
-							// ..?
-							// 00.
-							// ?0?
-							if self.top_right {
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-									24
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-									2
-								}
-							} else {
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-									24
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-									2
-								}
-							}
+							2
 						}
 					}
 				} else {
-					// ?.?
-					// .0?
-					// ?0?
 					if self.right {
-						// ?.?
-						// .00
-						// ?0?
-						if self.top_left {
-							// 0.?
-							// .00
-							// ?0?
-							if self.top_right {
-								// 0.0
-								// .00
-								// ?0?
-								if self.bottom_left {
-									// 0.0
-									// .00
-									// 00?
-									if self.bottom_right {
-										8
-									} else {
-										1
-									}
-								} else {
-									// 0.0
-									// .00
-									// .0?
-									if self.bottom_right {
-										8
-									} else {
-										1
-									}
-								}
-							} else {
-								// 0..
-								// .00
-								// ?0?
-								if self.bottom_left {
-									if self.bottom_right {
-										8
-									} else {
-										1
-									}
-								} else {
-									if self.bottom_right {
-										8
-									} else {
-										1
-									}
-								}
-							}
+						if self.bottom_right {
+							8
 						} else {
-							// ..?
-							// .00
-							// ?0?
-							if self.top_right {
-								// ..0
-								// .00
-								// ?0?
-								if self.bottom_left {
-									if self.bottom_right {
-										8
-									} else {
-										1
-									}
-								} else {
-									if self.bottom_right {
-										8
-									} else {
-										1
-									}
-								}
-							} else {
-								// ...
-								// .00
-								// ?0?
-								if self.bottom_left {
-									if self.bottom_right {
-										8
-									} else {
-										1
-									}
-								} else {
-									if self.bottom_right {
-										8
-									} else {
-										1
-									}
-								}
-							}
+							1
 						}
 					} else {
-						// ?.?
-						// .0.
-						// ?0?
-
-						if self.top_left {
-							// 0.?
-							// .0.
-							// ?0?
-							if self.top_right {
-								// 0.0
-								// .0.
-								// ?0?
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							} else {
-								// 0..
-								// .0.
-								// ?0?
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							}
-						} else {
-							// ..?
-							// .0.
-							// ?0?
-							if self.top_right {
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							} else {
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							}
-						}
 						14
 					}
 				}
 			} else {
-				// ?.?
-				// ?0?
-				// ?.?
 				if self.left {
-					// ?.?
-					// 00?
-					// ?.?
 					if self.right {
-						// ?.?
-						// 000
-						// ?.?
-						if self.top_left {
-							// 0.?
-							// 000
-							// ?.?
-							if self.top_right {
-								// 0.0
-								// 000
-								// ?.?
-								if self.bottom_left {
-									// 0.0
-									// 000
-									// 0.?
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									// 0.0
-									// 000
-									// ..?
-									if self.bottom_right {
-									} else {
-									}
-								}
-							} else {
-								// 0..
-								// 000
-								// ?.?
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							}
-						} else {
-							// ..?
-							// 000
-							// ?.?
-							if self.top_right {
-								// ..0
-								// 000
-								// ?.?
-								if self.bottom_left {
-									// ..0
-									// 000
-									// 0.?
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							} else {
-								// ...
-								// 000
-								// ?.?
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							}
-						}
 						3
 					} else {
-						// ?.?
-						// 00.
-						// ?.?
-						if self.top_left {
-							// 0.?
-							// 00.
-							// ?.?
-
-							if self.top_right {
-								// 0.0
-								// 00.
-								// ?.?
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							} else {
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							}
-						} else {
-							// ..?
-							// 00.
-							// ?.?
-							if self.top_right {
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							} else {
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							}
-						}
 						6
 					}
 				} else {
-					//////
-					// ?.?
-					// .0?
-					// ?.?
 					if self.right {
-						// ?.?
-						// .00
-						// ?.?
-						if self.top_left {
-							// 0.?
-							// .00
-							// ?.?
-							if self.top_right {
-								// 0.0
-								// .00
-								// ?.?
-								if self.bottom_left {
-									// 0.0
-									// .00
-									// 0.?
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									// 0.0
-									// .00
-									// ..?
-									if self.bottom_right {
-									} else {
-									}
-								}
-							} else {
-								// 0..
-								// .00
-								// ?.?
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							}
-						} else {
-							// ..?
-							// .00
-							// ?.?
-							if self.top_right {
-								// ..0
-								// .00
-								// ?.?
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							} else {
-								// ...
-								// .00
-								// ?.?
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							}
-						}
 						15
 					} else {
-						// ?.?
-						// .0.
-						// ?.?
-
-						if self.top_left {
-							// 0.?
-							// .0.
-							// ?.?
-							if self.top_right {
-								// 0.0
-								// .0.
-								// ?.?
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							} else {
-								// 0..
-								// .0.
-								// ?.?
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							}
-						} else {
-							// ..?
-							// .0.
-							// ?.?
-							if self.top_right {
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							} else {
-								if self.bottom_left {
-									if self.bottom_right {
-									} else {
-									}
-								} else {
-									if self.bottom_right {
-									} else {
-									}
-								}
-							}
-						}
 						31
 					}
 				}

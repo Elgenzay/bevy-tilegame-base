@@ -137,6 +137,7 @@ pub struct MapChunk {
 	tiles: HashMap<(u8, u8), MapTile>,
 }
 
+#[derive(Clone, Copy)]
 pub struct MapTile {
 	pub entity: Entity,
 	pub outline: Entity,
@@ -337,12 +338,15 @@ pub fn spawn_chunk(
 				Some(v) => v,
 				None => continue,
 			};
-			let tile_coord = Coordinate::Tile {
-				x: tile_x,
-				y: tile_y,
-			};
-			let tile = create_tile(commands, tile_coord, tile_type, &sprites);
-
+			let tile = create_tile(
+				commands,
+				Coordinate::Tile {
+					x: tile_x,
+					y: tile_y,
+				},
+				tile_type,
+				&sprites,
+			);
 			if tile_type.is_weighted() {
 				commands.entity(tile.entity).insert(WeightedTile {
 					granularity: tile_type.get_granularity(),
@@ -351,7 +355,7 @@ pub fn spawn_chunk(
 			}
 			commands.entity(chunk_entity).add_child(tile.entity);
 			mapchunk_tiles.insert((x, y), tile);
-			//ev_update.send(UpdateTileEvent(tile_coord));
+			ev_update.send(UpdateTileEvent(tile));
 		}
 	}
 
@@ -391,6 +395,49 @@ pub fn spawn_chunk(
 			tiles: mapchunk_tiles,
 		},
 	);
+
+	for x in -1..=1 {
+		for y in -1..=1 {
+			let chunk_coord = Coordinate::Chunk { x, y }.moved(&chunk_pos.as_vec2());
+			let cs_offset_x = CHUNK_SIZE.0 - 1;
+			let cs_offset_y = CHUNK_SIZE.1 - 1;
+			let (x_min, x_max, y_min, y_max) = match x {
+				-1 => match y {
+					-1 => (cs_offset_x, cs_offset_x, cs_offset_y, cs_offset_y), // bottom left
+					0 => (cs_offset_x, cs_offset_x, 0, cs_offset_y),            // left
+					1 => (cs_offset_x, cs_offset_x, 0, 0),                      // top left
+					_ => panic!(),
+				},
+				0 => match y {
+					-1 => (0, cs_offset_x, cs_offset_y, cs_offset_y), // bottom
+					0 => continue,                                    //
+					1 => (0, cs_offset_x, 0, 0),                      // top
+					_ => panic!(),
+				},
+				1 => match y {
+					-1 => (0, 0, cs_offset_y, cs_offset_y), // bottom right
+					0 => (0, 0, 0, cs_offset_y),            // right
+					1 => (0, 0, 0, 0),                      // top right
+					_ => panic!(),
+				},
+				_ => panic!(),
+			};
+			for x in x_min..=x_max {
+				for y in y_min..=y_max {
+					let tile_coord = Coordinate::Tile {
+						x: chunk_coord.x_i32() * CHUNK_SIZE.0 as i32 + x as i32,
+						y: chunk_coord.y_i32() * CHUNK_SIZE.1 as i32 + y as i32,
+					};
+					if let Ok(opt) = map.get_tile(tile_coord) {
+						if let Some(t) = opt {
+							ev_update.send(UpdateTileEvent(*t));
+						}
+					};
+				}
+			}
+		}
+	}
+
 	chunk_entity
 }
 
@@ -460,12 +507,18 @@ fn destroy_tile(
 			}
 		}
 		for c in ev.0.as_tile_coord().get_neighboring(1) {
-			ev_update.send(UpdateTileEvent(c));
+			if let Ok(opt) = map.get_tile(c) {
+				if let Some(t) = opt {
+					ev_update.send(UpdateTileEvent(*t));
+				}
+			} else {
+				//unloaded chunk
+			}
 		}
 	}
 }
 
-fn render_chunks(
+pub fn render_chunks(
 	q_player: Query<(&Player, &Position)>,
 	mut map: ResMut<Map>,
 	mut commands: Commands,
