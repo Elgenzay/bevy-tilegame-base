@@ -1,14 +1,16 @@
 use crate::{
-	grid::{Coordinate, DestroyTileEvent},
+	grid::{Coordinate, DestroyTileEvent, Map},
 	players::{Jumping, MoveDirection, Player},
 	settings::Settings,
+	sprites::Sprites,
 	tilephysics::UpdateTileEvent,
+	tiles::{create_tile, TileType},
 	Cursor,
 };
 use bevy::{
 	prelude::{
-		App, Camera, EventWriter, GlobalTransform, Input, KeyCode, MouseButton, Plugin, Query, Res,
-		Transform, Vec2, Vec3, With,
+		App, Camera, Commands, EventWriter, GlobalTransform, Input, KeyCode, MouseButton, Plugin,
+		Query, Res, ResMut, Transform, Vec2, Vec3, With,
 	},
 	render::camera::RenderTarget,
 	window::Windows,
@@ -119,6 +121,9 @@ fn mouse_events_system(
 	input: Res<Input<MouseButton>>,
 	mut ev_destroytile: EventWriter<DestroyTileEvent>,
 	mut ev_updatetile: EventWriter<UpdateTileEvent>,
+	mut map: ResMut<Map>,
+	mut commands: Commands,
+	sprites: Res<Sprites>,
 ) {
 	let (camera, camera_transform) = match q_camera.get_single() {
 		Ok(v) => v,
@@ -155,15 +160,13 @@ fn mouse_events_system(
 				}
 			}
 		}
+
+		let tile_coord = world_coord.as_tile_coord();
+		if input.just_pressed(MouseButton::Right) {
+			let e = create_tile(&mut commands, tile_coord, TileType::DebugBrown, &sprites);
+			let _ = map.set_tile(&mut commands, tile_coord, Some(e));
+		}
 		if input.pressed(MouseButton::Right) {
-			//let tile_coord = world_coord.as_tile_coord();
-			//let e = create_tile_entity(
-			//	&mut commands,
-			//	&asset_server,
-			//	tile_coord,
-			//	TileType::DebugBrown,
-			//);
-			//let _ = map.set_tile(&mut commands, tile_coord, Some(e));
 			let tile_coord = world_coord.as_tile_coord();
 			let bottom_left = tile_coord.moved(&Vec2::NEG_ONE);
 			let top_right = tile_coord.moved(&Vec2::ONE);

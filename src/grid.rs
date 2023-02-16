@@ -323,6 +323,7 @@ pub fn spawn_chunk(
 	chunk_pos: IVec2,
 	map: &mut Map,
 	sprites: &Sprites,
+	ev_update: &mut EventWriter<UpdateTileEvent>,
 ) -> Entity {
 	let chunk_entity = commands.spawn_empty().id();
 	let mut mapchunk_tiles = HashMap::new();
@@ -336,16 +337,11 @@ pub fn spawn_chunk(
 				Some(v) => v,
 				None => continue,
 			};
-			let tile = create_tile(
-				commands,
-				Coordinate::Tile {
-					x: tile_x,
-					y: tile_y,
-				},
-				tile_type,
-				&sprites,
-				&map,
-			);
+			let tile_coord = Coordinate::Tile {
+				x: tile_x,
+				y: tile_y,
+			};
+			let tile = create_tile(commands, tile_coord, tile_type, &sprites);
 
 			if tile_type.is_weighted() {
 				commands.entity(tile.entity).insert(WeightedTile {
@@ -355,6 +351,7 @@ pub fn spawn_chunk(
 			}
 			commands.entity(chunk_entity).add_child(tile.entity);
 			mapchunk_tiles.insert((x, y), tile);
+			//ev_update.send(UpdateTileEvent(tile_coord));
 		}
 	}
 
@@ -399,7 +396,9 @@ pub fn spawn_chunk(
 
 pub fn despawn_chunk(commands: &mut Commands, chunk_pos: IVec2, map: &mut Map) {
 	if let Some(v) = map.0.get(&(chunk_pos.x, chunk_pos.y)) {
-		commands.entity(v.entity).despawn_recursive();
+		if let Some(e) = commands.get_entity(v.entity) {
+			e.despawn_recursive();
+		};
 	}
 	map.0.remove(&(chunk_pos.x, chunk_pos.y));
 }
@@ -472,6 +471,7 @@ fn render_chunks(
 	mut commands: Commands,
 	q_chunks: Query<&Chunk>,
 	sprites: Res<Sprites>,
+	mut ev_update: EventWriter<UpdateTileEvent>,
 ) {
 	for (player, position) in q_player.iter() {
 		if let Player::Local = player {
@@ -496,7 +496,13 @@ fn render_chunks(
 					if map.0.contains_key(&(x, y)) {
 						continue;
 					}
-					spawn_chunk(&mut commands, IVec2::new(x, y), &mut map, &sprites);
+					spawn_chunk(
+						&mut commands,
+						IVec2::new(x, y),
+						&mut map,
+						&sprites,
+						&mut ev_update,
+					);
 				}
 			}
 		}

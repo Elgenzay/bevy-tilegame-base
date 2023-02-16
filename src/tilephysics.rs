@@ -1,11 +1,16 @@
 use bevy::{
-	prelude::{App, Commands, Entity, EventReader, EventWriter, Plugin, Query, Res, ResMut, Vec2},
+	prelude::{
+		App, Commands, Entity, EventReader, EventWriter, Plugin, Query, Res, ResMut, Transform,
+		Vec2, Vec3,
+	},
+	sprite::SpriteBundle,
 	time::Time,
 };
 
 use crate::{
 	grid::{Coordinate, Map},
 	sprites::Sprites,
+	tileoutline::ConnectedNeighbors,
 	tiles::{create_tile, FallingTile, Tile, WeightedTile},
 	TickTimer,
 };
@@ -16,15 +21,16 @@ impl Plugin for TilePhysics {
 	fn build(&self, app: &mut App) {
 		app.add_system(apply_gravity)
 			.add_event::<UpdateTileEvent>()
-			.add_system(update_tile_physics);
+			.add_system(update_tile);
 	}
 }
 
-pub fn update_tile_physics(
+pub fn update_tile(
 	map: Res<Map>,
 	mut ev_update: EventReader<UpdateTileEvent>,
 	mut commands: Commands,
 	q_tiles: Query<&Tile>,
+	sprites: Res<Sprites>,
 ) {
 	for ev in ev_update.iter() {
 		let tiles = match ev.0 {
@@ -50,11 +56,65 @@ pub fn update_tile_physics(
 				Ok(v) => v,
 				Err(_) => continue,
 			};
+			let tile_coord = tile.coordinate.as_tile_coord();
 			if tile.tile_type.is_weighted() {
 				commands
 					.entity(tile_parent.entity)
-					.insert(FallingTile(tile.coordinate.as_tile_coord().y_i32()));
+					.insert(FallingTile(tile_coord.y_i32()));
 			}
+
+			let mut connected = ConnectedNeighbors::new();
+			for c in Coordinate::ZERO.get_neighboring(1) {
+				if c == Coordinate::ZERO {
+					continue;
+				}
+				let tile = map.get_tile(c.moved(&tile_coord.as_vec2()));
+				if match tile {
+					Ok(opt) => match opt {
+						Some(_) => true,
+						None => false,
+					},
+					Err(_) => false, //unloaded chunk
+				} {
+					match c.x_i32() {
+						-1 => match c.y_i32() {
+							-1 => connected.bottom_left = true,
+							0 => connected.left = true,
+							1 => connected.top_left = true,
+							_ => panic!(),
+						},
+						0 => match c.y_i32() {
+							-1 => connected.bottom = true,
+							1 => connected.top = true,
+							_ => panic!(),
+						},
+						1 => match c.y_i32() {
+							-1 => connected.bottom_right = true,
+							0 => connected.right = true,
+							1 => connected.top_right = true,
+							_ => panic!(),
+						},
+						_ => panic!(),
+					}
+				}
+			}
+
+			commands.entity(tile_parent.outline).insert(SpriteBundle {
+				texture: sprites
+					.tile_outlines
+					.get(connected.get_outline_index() - 1)
+					.unwrap()
+					.clone(),
+				transform: Transform {
+					translation: Vec3 {
+						x: 0.0,
+						y: 0.0,
+						z: 1.0,
+					},
+					..Default::default()
+				},
+				..Default::default()
+			});
 		}
 	}
 }
@@ -84,7 +144,7 @@ fn apply_gravity(
 		match get_fall_coord(map.as_ref(), current_position, tuple.2.granularity) {
 			Ok(opt) => match opt {
 				Some(coord) => {
-					let tile = create_tile(&mut commands, coord, tuple.1.tile_type, &sprites, &map);
+					let tile = create_tile(&mut commands, coord, tuple.1.tile_type, &sprites);
 					if let Err(_) = map.set_tile(&mut commands, current_position, None) {
 						continue;
 						//unloaded chunk

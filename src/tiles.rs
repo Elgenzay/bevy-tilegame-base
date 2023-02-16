@@ -4,7 +4,7 @@ use bevy::{
 };
 
 use crate::{
-	grid::{Coordinate, Map, MapTile, Region},
+	grid::{Coordinate, MapTile, Region},
 	playerphysics::Collider,
 	sprites::Sprites,
 	CHUNK_SIZE, TILE_SIZE,
@@ -63,40 +63,11 @@ pub struct WeightedTile {
 #[derive(Component, Ord, Eq, PartialEq, PartialOrd)]
 pub struct FallingTile(pub i32);
 
-struct ConnectedNeighbors {
-	top_left: bool,
-	top: bool,
-	top_right: bool,
-	left: bool,
-	right: bool,
-	bottom: bool,
-	bottom_left: bool,
-	bottom_right: bool,
-}
-impl ConnectedNeighbors {
-	fn new() -> Self {
-		Self {
-			top_left: false,
-			top: false,
-			top_right: false,
-			left: false,
-			right: false,
-			bottom: false,
-			bottom_left: false,
-			bottom_right: false,
-		}
-	}
-	fn get_outline_index(self) -> usize {
-		40 //todo
-	}
-}
-
 pub fn create_tile(
 	commands: &mut Commands,
 	coord: Coordinate,
 	tile_type: TileType,
 	sprites: &Sprites,
-	map: &Map, //todo: outlines
 ) -> MapTile {
 	let tilesize_x_f32 = TILE_SIZE.x as f32;
 	let tilesize_y_f32 = TILE_SIZE.y as f32;
@@ -152,60 +123,7 @@ pub fn create_tile(
 		))
 		.id();
 
-	let mut connected = ConnectedNeighbors::new();
-	for c in Coordinate::ZERO.get_neighboring(1) {
-		if c == Coordinate::ZERO {
-			continue;
-		}
-		let tile = map.get_tile(c.moved(&tile_coord.as_vec2()));
-		if match tile {
-			Ok(opt) => match opt {
-				Some(_) => true,
-				None => false,
-			},
-			Err(_) => false, //unloaded chunk
-		} {
-			match c.x_i32() {
-				-1 => match c.y_i32() {
-					-1 => connected.bottom_left = true,
-					0 => connected.left = true,
-					1 => connected.top_left = true,
-					_ => panic!(),
-				},
-				0 => match c.y_i32() {
-					-1 => connected.bottom = true,
-					1 => connected.top = true,
-					_ => panic!(),
-				},
-				1 => match c.y_i32() {
-					-1 => connected.bottom_right = true,
-					0 => connected.right = true,
-					1 => connected.top_right = true,
-					_ => panic!(),
-				},
-				_ => panic!(),
-			}
-		}
-	}
-
-	let outline = commands
-		.spawn(SpriteBundle {
-			texture: sprites
-				.tile_outlines
-				.get(connected.get_outline_index() - 1)
-				.unwrap()
-				.clone(),
-			transform: Transform {
-				translation: Vec3 {
-					x: 0.0,
-					y: 0.0,
-					z: 1.0,
-				},
-				..Default::default()
-			},
-			..Default::default()
-		})
-		.id();
+	let outline = commands.spawn_empty().id();
 	commands.entity(tile_entity).add_child(outline);
 
 	if tile_type.is_weighted() {
