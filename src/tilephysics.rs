@@ -1,14 +1,14 @@
 use bevy::{
 	prelude::{
-		App, Commands, CoreStage, Entity, EventReader, EventWriter, IntoSystemDescriptor, Plugin,
-		Query, Res, ResMut, Transform, Vec2, Vec3,
+		App, Commands, CoreStage, Entity, EventReader, EventWriter, Plugin, Query, Res, ResMut,
+		Transform, Vec2, Vec3,
 	},
 	sprite::SpriteBundle,
 	time::Time,
 };
 
 use crate::{
-	grid::{render_chunks, Coordinate, Map, MapTile},
+	grid::{Coordinate, Map, MapTile},
 	sprites::Sprites,
 	tileoutline::ConnectedNeighbors,
 	tiles::{create_tile, FallingTile, Tile, WeightedTile},
@@ -48,44 +48,50 @@ pub fn update_tile(
 }
 
 fn update_sprite(
-	tile_coord: Coordinate,
+	coordinate: Coordinate,
 	map: &Map,
 	commands: &mut Commands,
 	maptile: MapTile,
 	sprites: &Sprites,
 ) {
 	let mut connected = ConnectedNeighbors::new();
-	for c in Coordinate::ZERO.get_neighboring(1) {
-		if c == Coordinate::ZERO {
-			continue;
-		}
-		let tile = map.get_tile(c.moved(&tile_coord.as_vec2()));
-		if match tile {
-			Ok(opt) => match opt {
-				Some(_) => true,
-				None => false,
-			},
-			Err(_) => false, //unloaded chunk
-		} {
-			match c.x_i32() {
-				-1 => match c.y_i32() {
-					-1 => connected.bottom_left = true,
-					0 => connected.left = true,
-					1 => connected.top_left = true,
-					_ => panic!(),
+	for x in -1..=1 {
+		for y in -1..=1 {
+			if x == 0 && y == 0 {
+				continue;
+			}
+			let tile = map.get_tile(
+				coordinate
+					.as_tile_coord()
+					.moved(&Vec2::new(x as f32, y as f32)),
+			);
+			if match tile {
+				Ok(opt) => match opt {
+					Some(_) => true,
+					None => false,
 				},
-				0 => match c.y_i32() {
-					-1 => connected.bottom = true,
-					1 => connected.top = true,
+				Err(_) => false, //unloaded chunk
+			} {
+				match x {
+					-1 => match y {
+						-1 => connected.bottom_left = true,
+						0 => connected.left = true,
+						1 => connected.top_left = true,
+						_ => panic!(),
+					},
+					0 => match y {
+						-1 => connected.bottom = true,
+						1 => connected.top = true,
+						_ => panic!(),
+					},
+					1 => match y {
+						-1 => connected.bottom_right = true,
+						0 => connected.right = true,
+						1 => connected.top_right = true,
+						_ => panic!(),
+					},
 					_ => panic!(),
-				},
-				1 => match c.y_i32() {
-					-1 => connected.bottom_right = true,
-					0 => connected.right = true,
-					1 => connected.top_right = true,
-					_ => panic!(),
-				},
-				_ => panic!(),
+				}
 			}
 		}
 	}
@@ -145,13 +151,22 @@ fn apply_gravity(
 						continue;
 						//unloaded chunk
 					};
-					for c in coord.get_neighboring(2) {
-						if let Ok(opt) = map.get_tile(c) {
-							if let Some(t) = opt {
-								ev_updatetile.send(UpdateTileEvent(*t));
+
+					for x in -1..=1 {
+						for y in -1..=1 {
+							if x == 0 && y == 0 {
+								continue;
 							}
-						} else {
-							//unloaded chunk
+							for coord in [coord, current_position] {
+								let coord = coord.moved(&Vec2::new(x as f32, y as f32));
+								if let Ok(opt) = map.get_tile(coord) {
+									if let Some(t) = opt {
+										ev_updatetile.send(UpdateTileEvent(*t));
+									}
+								} else {
+									//unloaded chunk
+								}
+							}
 						}
 					}
 				}

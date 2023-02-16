@@ -87,24 +87,6 @@ impl Map {
 		Err(()) // chunk not loaded
 	}
 
-	pub fn get_tiles(&self, coord: Coordinate) -> Result<Vec<&MapTile>, ()> {
-		match coord {
-			Coordinate::ChunkLocal { x: _, y: _ } => {
-				panic!("ChunkLocal coordinate passed to get_tiles()")
-			}
-			_ => (),
-		};
-		let chunk_coord = coord.as_chunk_coord();
-		if let Some(map_chunk) = self.0.get(&(chunk_coord.x_i32(), chunk_coord.y_i32())) {
-			let mut tiles = vec![];
-			for tile in map_chunk.tiles.values() {
-				tiles.push(tile);
-			}
-			return Ok(tiles);
-		}
-		Err(()) // chunk not loaded
-	}
-
 	pub fn set_tile(
 		&mut self,
 		commands: &mut Commands,
@@ -274,10 +256,6 @@ impl Coordinate {
 		}
 	}
 
-	pub fn as_vec2(&self) -> Vec2 {
-		Vec2::new(self.x_f32(), self.y_f32())
-	}
-
 	pub fn moved(&self, movement: &Vec2) -> Coordinate {
 		match self {
 			Coordinate::World { x, y } => Coordinate::World {
@@ -295,18 +273,6 @@ impl Coordinate {
 			Coordinate::ChunkLocal { x: _, y: _ } => panic!("Tried to move ChunkLocal coordinate"),
 		}
 	}
-
-	pub fn get_neighboring(&self, size: i32) -> Vec<Coordinate> {
-		let mut v = vec![];
-		for x in -size..=size {
-			for y in -size..=size {
-				v.push(self.moved(&Vec2::new(x as f32, y as f32)));
-			}
-		}
-		v
-	}
-
-	pub const ZERO: Self = Self::Tile { x: 0, y: 0 };
 }
 
 impl PartialEq for Coordinate {
@@ -506,13 +472,19 @@ fn destroy_tile(
 				commands.entity(tile.entity).despawn_recursive();
 			}
 		}
-		for c in ev.0.as_tile_coord().get_neighboring(1) {
-			if let Ok(opt) = map.get_tile(c) {
-				if let Some(t) = opt {
-					ev_update.send(UpdateTileEvent(*t));
+		for x in -1..=1 {
+			for y in -1..=1 {
+				if x == 0 && y == 0 {
+					continue;
 				}
-			} else {
-				//unloaded chunk
+				let c = ev.0.as_tile_coord().moved(&Vec2::new(x as f32, y as f32));
+				if let Ok(opt) = map.get_tile(c) {
+					if let Some(t) = opt {
+						ev_update.send(UpdateTileEvent(*t));
+					}
+				} else {
+					//unloaded chunk
+				}
 			}
 		}
 	}

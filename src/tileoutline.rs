@@ -119,18 +119,10 @@ impl ConnectedNeighbors {
 				} else {
 					if self.right {
 						if self.top_right {
-							if self.bottom_left {
-								if self.bottom_right {
-									21
-								} else {
-									43
-								}
+							if self.bottom_right {
+								21
 							} else {
-								if self.bottom_right {
-									21
-								} else {
-									43
-								}
+								43
 							}
 						} else {
 							if self.bottom_right {
@@ -182,33 +174,17 @@ impl ConnectedNeighbors {
 			if self.bottom {
 				if self.left {
 					if self.right {
-						if self.top_left {
-							if self.bottom_left {
-								if self.bottom_right {
-									29
-								} else {
-									38
-								}
+						if self.bottom_left {
+							if self.bottom_right {
+								29
 							} else {
-								if self.bottom_right {
-									37
-								} else {
-									4
-								}
+								38
 							}
 						} else {
-							if self.bottom_left {
-								if self.bottom_right {
-									29
-								} else {
-									38
-								}
+							if self.bottom_right {
+								37
 							} else {
-								if self.bottom_right {
-									37
-								} else {
-									4
-								}
+								4
 							}
 						}
 					} else {

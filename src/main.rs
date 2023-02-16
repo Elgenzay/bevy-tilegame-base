@@ -74,7 +74,7 @@ fn main() {
 		.insert_resource(Settings {
 			..Default::default()
 		})
-		.insert_resource(ClearColor(Color::rgb(0.91, 0.91, 0.91)))
+		.insert_resource(ClearColor(Color::rgb(0.11, 0.11, 0.1)))
 		.insert_resource(TickTimer(Timer::from_seconds(
 			1.0 / TICKRATE,
 			TimerMode::Repeating,
