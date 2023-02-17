@@ -74,7 +74,7 @@ fn main() {
 		.insert_resource(Settings {
 			..Default::default()
 		})
-		.insert_resource(ClearColor(Color::rgb(0.11, 0.11, 0.1)))
+		.insert_resource(ClearColor(Color::rgb(0.30, 0.20, 0.10)))
 		.insert_resource(TickTimer(Timer::from_seconds(
 			1.0 / TICKRATE,
 			TimerMode::Repeating,
@@ -84,7 +84,7 @@ fn main() {
 
 fn startup(mut commands: Commands, mut windows: ResMut<Windows>, sprites: Res<Sprites>) {
 	let mut projection = OrthographicProjection::default();
-	projection.scale = 0.5;
+	projection.scale = 0.4;
 	commands.spawn((
 		Camera2dBundle {
 			projection,

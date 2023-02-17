@@ -163,7 +163,7 @@ fn mouse_events_system(
 
 		let tile_coord = world_coord.as_tile_coord();
 		if input.just_pressed(MouseButton::Right) {
-			let e = create_tile(&mut commands, tile_coord, TileType::DebugBrown, &sprites);
+			let e = create_tile(&mut commands, tile_coord, TileType::Dirt, &sprites);
 			let _ = map.set_tile(&mut commands, tile_coord, Some(e));
 		}
 		if input.pressed(MouseButton::Right) {

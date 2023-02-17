@@ -12,10 +12,10 @@ pub fn tiletype_at(x: i32, y: i32) -> Option<TileType> {
 		return None;
 	}
 	if noise < 0.01 {
-		Some(TileType::DebugGreen)
+		Some(TileType::Moss)
 	} else if noise > 0.2 {
-		Some(TileType::DebugGray)
+		Some(TileType::Gravel)
 	} else {
-		Some(TileType::DebugBrown)
+		Some(TileType::Dirt)
 	}
 }

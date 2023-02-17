@@ -16,11 +16,7 @@ impl Plugin for SpritesPlugin {
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 	let mut tiles = HashMap::new();
-	for tile_type in [
-		TileType::DebugBrown,
-		TileType::DebugGray,
-		TileType::DebugGreen,
-	] {
+	for tile_type in TileType::all() {
 		let mut images = Vec::new();
 		let tilename = tile_type.get_name();
 		for entry in read_dir(format!("assets/tiles/{}", tilename)).unwrap() {
@@ -33,8 +29,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 	}
 	let mut tile_outlines = vec![];
 	for x in 1..=47 {
-		tile_outlines
-			.push(asset_server.load(format!("tile_outlines/generic/{}.png", x.to_string())));
+		tile_outlines.push(asset_server.load(format!("tile_outlines/{}.png", x.to_string())));
 	}
 
 	commands.insert_resource(Sprites {

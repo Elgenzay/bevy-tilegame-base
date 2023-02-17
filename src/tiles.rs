@@ -19,23 +19,27 @@ pub struct Tile {
 
 #[derive(Copy, Clone)]
 pub enum TileType {
-	DebugGray,
-	DebugGreen,
-	DebugBrown,
+	Gravel,
+	Moss,
+	Dirt,
 }
 
 impl TileType {
+	pub fn all() -> Vec<TileType> {
+		vec![TileType::Gravel, TileType::Moss, TileType::Dirt]
+	}
+
 	pub fn get_name(&self) -> String {
 		match self {
-			TileType::DebugGray => "debug_gray".to_owned(),
-			TileType::DebugGreen => "debug_green".to_owned(),
-			TileType::DebugBrown => "debug_brown".to_owned(),
+			TileType::Gravel => "gravel".to_owned(),
+			TileType::Moss => "moss".to_owned(),
+			TileType::Dirt => "dirt".to_owned(),
 		}
 	}
 
 	pub fn is_weighted(&self) -> bool {
 		match self {
-			TileType::DebugGray => true,
+			TileType::Gravel => true,
 			_ => false,
 		}
 	}
@@ -48,7 +52,7 @@ impl TileType {
 
 	pub fn get_granularity(&self) -> u8 {
 		match self {
-			TileType::DebugGray => 1,
+			TileType::Gravel => 1,
 			_ => 0,
 		}
 	}
