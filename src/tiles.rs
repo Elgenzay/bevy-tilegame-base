@@ -1,12 +1,15 @@
 use bevy::{
-	prelude::{BuildChildren, Commands, Component, Transform, Vec2, Vec3},
+	prelude::{
+		BuildChildren, Commands, Component, DespawnRecursiveExt, EventWriter, Transform, Vec2, Vec3,
+	},
 	sprite::SpriteBundle,
 };
 
 use crate::{
-	grid::{Coordinate, MapTile, Region},
+	grid::{Coordinate, Map, MapTile, Region},
 	playerphysics::Collider,
 	sprites::Sprites,
+	tilephysics::UpdateTileEvent,
 	CHUNK_SIZE, TILE_SIZE,
 };
 
@@ -80,7 +83,9 @@ pub fn create_tile(
 	coord: Coordinate,
 	tile_type: TileType,
 	sprites: &Sprites,
-) -> MapTile {
+	map: &mut Map,
+	update_tile_event: &mut EventWriter<UpdateTileEvent>,
+) -> Result<MapTile, ()> {
 	let tilesize_x_f32 = TILE_SIZE.x as f32;
 	let tilesize_y_f32 = TILE_SIZE.y as f32;
 	let tile_coord = coord.as_tile_coord();
@@ -101,10 +106,12 @@ pub fn create_tile(
 	i = i / 10;
 	i = i.abs() % texture_handle.len() as i32;
 
+	let outline = commands.spawn_empty().id();
+
 	let tile_entity = commands
 		.spawn((
 			Tile {
-				tile_type: tile_type,
+				tile_type,
 				coordinate: tile_coord,
 			},
 			SpriteBundle {
@@ -132,10 +139,8 @@ pub fn create_tile(
 				&Vec2::new(tilesize_x_f32, tilesize_y_f32),
 			),
 		))
+		.add_child(outline)
 		.id();
-
-	let outline = commands.spawn_empty().id();
-	commands.entity(tile_entity).add_child(outline);
 
 	if tile_type.is_weighted() {
 		commands.entity(tile_entity).insert(WeightedTile {
@@ -143,8 +148,40 @@ pub fn create_tile(
 			liquid: tile_type.is_liquid(),
 		});
 	}
-	MapTile {
+
+	let chunk_coord = coord.as_chunk_coord();
+	let chunk = match map.get_mut(&(chunk_coord.x_i32(), chunk_coord.y_i32())) {
+		Some(v) => v,
+		None => return Err(()), //unloaded chunk
+	};
+	let chunklocal = coord.as_chunklocal_coord();
+	if let Some(tile) = chunk.tiles.remove(&(chunklocal.x_u8(), chunklocal.y_u8())) {
+		if let Some(e) = commands.get_entity(tile.entity) {
+			e.despawn_recursive();
+		}
+	}
+	let maptile = MapTile {
 		entity: tile_entity,
 		outline,
+	};
+	if let Some(mut e) = commands.get_entity(chunk.entity) {
+		e.add_child(maptile.entity);
 	}
+	chunk
+		.tiles
+		.insert((chunklocal.x_u8(), chunklocal.y_u8()), maptile);
+	for x in -1..=1 {
+		for y in -1..=1 {
+			let c = coord.as_tile_coord().moved(&Vec2::new(x as f32, y as f32));
+			if let Ok(opt) = map.get_tile(c) {
+				if let Some(t) = opt {
+					update_tile_event.send(UpdateTileEvent(*t));
+				}
+			} else {
+				//unloaded chunk
+			}
+		}
+	}
+
+	Ok(maptile)
 }

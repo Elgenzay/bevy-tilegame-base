@@ -8,7 +8,7 @@ use bevy::{
 };
 
 use crate::{
-	grid::{Coordinate, Map, MapTile},
+	grid::{destroy_tile, Coordinate, Map, MapTile},
 	sprites::Sprites,
 	tileoutline::ConnectedNeighbors,
 	tiles::{create_tile, FallingTile, Tile, WeightedTile},
@@ -39,9 +39,9 @@ pub fn update_tile(
 		};
 		let tile_coord = tile.coordinate.as_tile_coord();
 		if tile.tile_type.is_weighted() {
-			commands
-				.entity(ev.0.entity)
-				.insert(FallingTile(tile_coord.y_i32()));
+			if let Some(mut e) = commands.get_entity(ev.0.entity) {
+				e.insert(FallingTile(tile_coord.y_i32()));
+			}
 		}
 		update_sprite(tile_coord, &map, &mut commands, ev.0, &sprites)
 	}
@@ -95,23 +95,24 @@ fn update_sprite(
 			}
 		}
 	}
-
-	commands.entity(maptile.outline).insert(SpriteBundle {
-		texture: sprites
-			.tile_outlines
-			.get(connected.get_outline_index() - 1)
-			.unwrap()
-			.clone(),
-		transform: Transform {
-			translation: Vec3 {
-				x: 0.0,
-				y: 0.0,
-				z: 1.0,
+	if let Some(mut e) = commands.get_entity(maptile.outline) {
+		e.insert(SpriteBundle {
+			texture: sprites
+				.tile_outlines
+				.get(connected.get_outline_index() - 1)
+				.unwrap()
+				.clone(),
+			transform: Transform {
+				translation: Vec3 {
+					x: 0.0,
+					y: 0.0,
+					z: 1.0,
+				},
+				..Default::default()
 			},
 			..Default::default()
-		},
-		..Default::default()
-	});
+		});
+	}
 }
 
 fn apply_gravity(
@@ -136,42 +137,35 @@ fn apply_gravity(
 	tuples.sort_by(|a, b| a.3.cmp(&b.3));
 	for tuple in tuples {
 		let current_position = tuple.1.coordinate.as_tile_coord();
-		match get_fall_coord(map.as_ref(), current_position, tuple.2.granularity) {
+		match get_fall_coord(&map, current_position, tuple.2.granularity) {
 			Ok(opt) => match opt {
 				Some(coord) => {
-					let tile = create_tile(&mut commands, coord, tuple.1.tile_type, &sprites);
-					if let Err(_) = map.set_tile(&mut commands, current_position, None) {
-						continue;
-						//unloaded chunk
+					destroy_tile(
+						current_position,
+						&mut map,
+						&mut commands,
+						&mut ev_updatetile,
+					);
+					let tile = if let Ok(t) = create_tile(
+						&mut commands,
+						coord,
+						tuple.1.tile_type,
+						&sprites,
+						&mut map,
+						&mut ev_updatetile,
+					) {
+						t
+					} else {
+						continue; //unloaded chunk
 					};
-					commands
-						.entity(tile.entity)
-						.insert(FallingTile(coord.y_i32()));
-					if let Err(_) = map.set_tile(&mut commands, coord, Some(tile)) {
-						continue;
-						//unloaded chunk
-					};
-
-					for x in -1..=1 {
-						for y in -1..=1 {
-							if x == 0 && y == 0 {
-								continue;
-							}
-							for coord in [coord, current_position] {
-								let coord = coord.moved(&Vec2::new(x as f32, y as f32));
-								if let Ok(opt) = map.get_tile(coord) {
-									if let Some(t) = opt {
-										ev_updatetile.send(UpdateTileEvent(*t));
-									}
-								} else {
-									//unloaded chunk
-								}
-							}
-						}
+					if let Some(mut e) = commands.get_entity(tile.entity) {
+						e.insert(FallingTile(coord.y_i32()));
 					}
 				}
 				None => {
-					let _ = &commands.entity(tuple.0).remove::<FallingTile>();
+					if let Some(mut e) = commands.get_entity(tuple.0) {
+						e.remove::<FallingTile>();
+					}
 					continue;
 				}
 			},

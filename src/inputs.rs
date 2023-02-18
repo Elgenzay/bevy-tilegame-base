@@ -1,16 +1,14 @@
 use crate::{
-	grid::{Coordinate, DestroyTileEvent, Map},
+	grid::{Coordinate, CreateTileEvent, DestroyTileEvent},
 	players::{Jumping, MoveDirection, Player},
 	settings::Settings,
-	sprites::Sprites,
-	tilephysics::UpdateTileEvent,
-	tiles::{create_tile, TileType},
+	tiles::TileType,
 	Cursor,
 };
 use bevy::{
 	prelude::{
-		App, Camera, Commands, EventWriter, GlobalTransform, Input, KeyCode, MouseButton, Plugin,
-		Query, Res, ResMut, Transform, Vec2, Vec3, With,
+		App, Camera, EventWriter, GlobalTransform, Input, KeyCode, MouseButton, Plugin, Query, Res,
+		Transform, Vec2, Vec3, With,
 	},
 	render::camera::RenderTarget,
 	window::Windows,
@@ -120,10 +118,7 @@ fn mouse_events_system(
 	mut q_cursor: Query<&mut Transform, With<Cursor>>,
 	input: Res<Input<MouseButton>>,
 	mut ev_destroytile: EventWriter<DestroyTileEvent>,
-	mut ev_updatetile: EventWriter<UpdateTileEvent>,
-	mut map: ResMut<Map>,
-	mut commands: Commands,
-	sprites: Res<Sprites>,
+	mut ev_createtile: EventWriter<CreateTileEvent>,
 ) {
 	let (camera, camera_transform) = match q_camera.get_single() {
 		Ok(v) => v,
@@ -148,37 +143,20 @@ fn mouse_events_system(
 		};
 		if cursor.translation != cursorlocation {
 			cursor.translation = cursorlocation;
-			//let tile = map.get_tile(world_coord);
-		}
-		if input.pressed(MouseButton::Left) {
-			let tile_coord = world_coord.as_tile_coord();
-			let bottom_left = tile_coord.moved(&Vec2::NEG_ONE);
-			let top_right = tile_coord.moved(&Vec2::ONE);
-			for x in bottom_left.x_i32()..=top_right.x_i32() {
-				for y in bottom_left.y_i32()..=top_right.y_i32() {
-					ev_destroytile.send(DestroyTileEvent(Coordinate::Tile { x, y }));
-				}
-			}
 		}
 
-		let tile_coord = world_coord.as_tile_coord();
-		if input.just_pressed(MouseButton::Right) {
-			let e = create_tile(&mut commands, tile_coord, TileType::Dirt, &sprites);
-			let _ = map.set_tile(&mut commands, tile_coord, Some(e));
-		}
 		if input.pressed(MouseButton::Right) {
-			let tile_coord = world_coord.as_tile_coord();
-			let bottom_left = tile_coord.moved(&Vec2::NEG_ONE);
-			let top_right = tile_coord.moved(&Vec2::ONE);
-			for x in bottom_left.x_i32()..=top_right.x_i32() {
-				for y in bottom_left.y_i32()..=top_right.y_i32() {
-					if let Ok(opt) = map.get_tile(Coordinate::Tile { x, y }) {
-						if let Some(t) = opt {
-							ev_updatetile.send(UpdateTileEvent(*t));
-						}
-					} else {
-						//unloaded chunk
-					}
+			ev_createtile.send(CreateTileEvent(world_coord, TileType::Sand));
+		}
+
+		if input.pressed(MouseButton::Left) {
+			for x in -1..=1 {
+				for y in -1..=1 {
+					ev_destroytile.send(DestroyTileEvent(
+						world_coord
+							.as_tile_coord()
+							.moved(&Vec2::new(x as f32, y as f32)),
+					));
 				}
 			}
 		}

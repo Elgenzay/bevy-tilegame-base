@@ -3,15 +3,15 @@ use crate::{
 	players::Player,
 	sprites::Sprites,
 	tilephysics::UpdateTileEvent,
-	tiles::{create_tile, WeightedTile},
+	tiles::{create_tile, TileType},
 	worldgen::tiletype_at,
 	CHUNK_SIZE, RENDER_DISTANCE, TILE_SIZE, UNRENDER_DISTANCE,
 };
 use bevy::{
 	prelude::{
-		App, BuildChildren, Children, Commands, Component, Deref, DerefMut, DespawnRecursiveExt,
-		Entity, EventReader, EventWriter, IVec2, Plugin, Query, Res, ResMut, Resource, Transform,
-		Vec2, Vec3, VisibilityBundle, With,
+		App, Children, Commands, Component, Deref, DerefMut, DespawnRecursiveExt, Entity,
+		EventReader, EventWriter, IVec2, Plugin, Query, Res, ResMut, Resource, Transform, Vec2,
+		Vec3, VisibilityBundle, With,
 	},
 	transform::TransformBundle,
 	utils::hashbrown::HashMap,
@@ -23,8 +23,10 @@ impl Plugin for Grid {
 	fn build(&self, app: &mut App) {
 		app.insert_resource(Map(HashMap::new()))
 			.add_event::<DestroyTileEvent>()
+			.add_event::<CreateTileEvent>()
 			.add_system(render_chunks)
-			.add_system(destroy_tile);
+			.add_system(destroy_tile_event)
+			.add_system(create_tile_event);
 	}
 }
 
@@ -84,41 +86,13 @@ impl Map {
 			}
 			return Ok(None);
 		}
-		Err(()) // chunk not loaded
-	}
-
-	pub fn set_tile(
-		&mut self,
-		commands: &mut Commands,
-		coord: Coordinate,
-		tile: Option<MapTile>,
-	) -> Result<(), ()> {
-		let chunk_coord = coord.as_chunk_coord();
-		let chunk = match self.0.get_mut(&(chunk_coord.x_i32(), chunk_coord.y_i32())) {
-			Some(v) => v,
-			None => return Err(()), // chunk not loaded
-		};
-		let chunklocal = coord.as_chunklocal_coord();
-		if let Some(tile) = chunk.tiles.remove(&(chunklocal.x_u8(), chunklocal.y_u8())) {
-			if let Some(e) = commands.get_entity(tile.entity) {
-				e.despawn_recursive();
-			}
-		}
-		if let Some(tile) = tile {
-			commands.entity(chunk.entity).add_child(tile.entity);
-			chunk
-				.tiles
-				.insert((chunklocal.x_u8(), chunklocal.y_u8()), tile);
-		} else {
-			chunk.tiles.remove(&(chunklocal.x_u8(), chunklocal.y_u8()));
-		}
-		Ok(())
+		Err(()) // unloaded chunk
 	}
 }
 
 pub struct MapChunk {
-	entity: Entity,
-	tiles: HashMap<(u8, u8), MapTile>,
+	pub entity: Entity,
+	pub tiles: HashMap<(u8, u8), MapTile>,
 }
 
 #[derive(Clone, Copy)]
@@ -294,38 +268,8 @@ pub fn spawn_chunk(
 	sprites: &Sprites,
 	ev_update: &mut EventWriter<UpdateTileEvent>,
 ) -> Entity {
-	let chunk_entity = commands.spawn_empty().id();
-	let mut mapchunk_tiles = HashMap::new();
 	let tilesize_x_f32 = TILE_SIZE.x as f32;
 	let tilesize_y_f32 = TILE_SIZE.y as f32;
-	for x in 0..CHUNK_SIZE.0 {
-		for y in 0..CHUNK_SIZE.1 {
-			let tile_x = (chunk_pos.x * CHUNK_SIZE.0 as i32) + x as i32;
-			let tile_y = (chunk_pos.y * CHUNK_SIZE.1 as i32) + y as i32;
-			let tile_type = match tiletype_at(tile_x, tile_y) {
-				Some(v) => v,
-				None => continue,
-			};
-			let tile = create_tile(
-				commands,
-				Coordinate::Tile {
-					x: tile_x,
-					y: tile_y,
-				},
-				tile_type,
-				&sprites,
-			);
-			if tile_type.is_weighted() {
-				commands.entity(tile.entity).insert(WeightedTile {
-					granularity: tile_type.get_granularity(),
-					liquid: tile_type.is_liquid(),
-				});
-			}
-			commands.entity(chunk_entity).add_child(tile.entity);
-			mapchunk_tiles.insert((x, y), tile);
-			ev_update.send(UpdateTileEvent(tile));
-		}
-	}
 
 	let transform = Transform::from_translation(Vec3::new(
 		chunk_pos.x as f32 * CHUNK_SIZE.0 as f32 * tilesize_x_f32,
@@ -333,26 +277,29 @@ pub fn spawn_chunk(
 		0.0,
 	));
 
-	commands.entity(chunk_entity).insert((
-		VisibilityBundle {
-			..Default::default()
-		},
-		TransformBundle {
-			local: transform,
-			..Default::default()
-		},
-		Chunk(chunk_pos),
-		Region::from_size(
-			&Vec2::new(
-				transform.translation.x - (tilesize_x_f32 * 0.5),
-				transform.translation.y - (tilesize_y_f32 * 0.5),
+	let chunk_entity = commands
+		.spawn((
+			VisibilityBundle {
+				..Default::default()
+			},
+			TransformBundle {
+				local: transform,
+				..Default::default()
+			},
+			Chunk(chunk_pos),
+			Region::from_size(
+				&Vec2::new(
+					transform.translation.x - (tilesize_x_f32 * 0.5),
+					transform.translation.y - (tilesize_y_f32 * 0.5),
+				),
+				&Vec2::new(
+					CHUNK_SIZE.0 as f32 * tilesize_x_f32,
+					CHUNK_SIZE.1 as f32 * tilesize_y_f32,
+				),
 			),
-			&Vec2::new(
-				CHUNK_SIZE.0 as f32 * tilesize_x_f32,
-				CHUNK_SIZE.1 as f32 * tilesize_y_f32,
-			),
-		),
-	));
+		))
+		.id();
+
 	if let Some(v) = map.0.get(&(chunk_pos.x, chunk_pos.y)) {
 		if let Some(e) = commands.get_entity(v.entity) {
 			e.despawn_recursive();
@@ -362,9 +309,33 @@ pub fn spawn_chunk(
 		(chunk_pos.x, chunk_pos.y),
 		MapChunk {
 			entity: chunk_entity,
-			tiles: mapchunk_tiles,
+			tiles: HashMap::new(),
 		},
 	);
+
+	for x in 0..CHUNK_SIZE.0 {
+		for y in 0..CHUNK_SIZE.1 {
+			let tile_x = (chunk_pos.x * CHUNK_SIZE.0 as i32) + x as i32;
+			let tile_y = (chunk_pos.y * CHUNK_SIZE.1 as i32) + y as i32;
+			let tile_type = match tiletype_at(tile_x, tile_y) {
+				Some(v) => v,
+				None => continue,
+			};
+			if let Err(_) = create_tile(
+				commands,
+				Coordinate::Tile {
+					x: tile_x,
+					y: tile_y,
+				},
+				tile_type,
+				&sprites,
+				map,
+				ev_update,
+			) {
+				println!("Chunk load error");
+			};
+		}
+	}
 
 	for x in -1..=1 {
 		for y in -1..=1 {
@@ -459,38 +430,47 @@ fn regions_overlap(region_1: &Region, region_2: &Region) -> bool {
 	true
 }
 
-fn destroy_tile(
+fn destroy_tile_event(
 	mut ev_destroy: EventReader<DestroyTileEvent>,
 	mut ev_update: EventWriter<UpdateTileEvent>,
 	mut map: ResMut<Map>,
 	mut commands: Commands,
 ) {
 	for ev in ev_destroy.iter() {
-		let chunk_coord = ev.0.as_chunk_coord();
-		if let Some(mapchunk) = map.0.get_mut(&(chunk_coord.x_i32(), chunk_coord.y_i32())) {
-			let local_coord = ev.0.as_chunklocal_coord();
-			if let Some(tile) = mapchunk
-				.tiles
-				.remove(&(local_coord.x_u8(), local_coord.y_u8()))
-			{
-				if let Some(e) = commands.get_entity(tile.entity) {
-					e.despawn_recursive();
-				}
+		destroy_tile(ev.0, &mut map, &mut commands, &mut ev_update);
+	}
+}
+
+pub fn destroy_tile(
+	coord: Coordinate,
+	map: &mut Map,
+	commands: &mut Commands,
+	ev_update: &mut EventWriter<UpdateTileEvent>,
+) {
+	let chunk_coord = coord.as_chunk_coord();
+	if let Some(mapchunk) = map.0.get_mut(&(chunk_coord.x_i32(), chunk_coord.y_i32())) {
+		let local_coord = coord.as_chunklocal_coord();
+		if let Some(tile) = mapchunk
+			.tiles
+			.remove(&(local_coord.x_u8(), local_coord.y_u8()))
+		{
+			if let Some(e) = commands.get_entity(tile.entity) {
+				e.despawn_recursive();
 			}
 		}
-		for x in -1..=1 {
-			for y in -1..=1 {
-				if x == 0 && y == 0 {
-					continue;
+	}
+	for x in -1..=1 {
+		for y in -1..=1 {
+			if x == 0 && y == 0 {
+				continue;
+			}
+			let c = coord.as_tile_coord().moved(&Vec2::new(x as f32, y as f32));
+			if let Ok(opt) = map.get_tile(c) {
+				if let Some(t) = opt {
+					ev_update.send(UpdateTileEvent(*t));
 				}
-				let c = ev.0.as_tile_coord().moved(&Vec2::new(x as f32, y as f32));
-				if let Ok(opt) = map.get_tile(c) {
-					if let Some(t) = opt {
-						ev_update.send(UpdateTileEvent(*t));
-					}
-				} else {
-					//unloaded chunk
-				}
+			} else {
+				//unloaded chunk
 			}
 		}
 	}
@@ -540,4 +520,24 @@ pub fn render_chunks(
 	}
 }
 
+pub fn create_tile_event(
+	mut map: ResMut<Map>,
+	mut commands: Commands,
+	mut ev_create: EventReader<CreateTileEvent>,
+	mut ev_update: EventWriter<UpdateTileEvent>,
+	sprites: Res<Sprites>,
+) {
+	for ev in ev_create.iter() {
+		let _ = create_tile(
+			&mut commands,
+			ev.0,
+			ev.1,
+			&sprites,
+			&mut map,
+			&mut ev_update,
+		);
+	}
+}
+
 pub struct DestroyTileEvent(pub Coordinate);
+pub struct CreateTileEvent(pub Coordinate, pub TileType);
