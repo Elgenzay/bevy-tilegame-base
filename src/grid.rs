@@ -100,7 +100,9 @@ impl Map {
 		};
 		let chunklocal = coord.as_chunklocal_coord();
 		if let Some(tile) = chunk.tiles.remove(&(chunklocal.x_u8(), chunklocal.y_u8())) {
-			commands.entity(tile.entity).despawn_recursive();
+			if let Some(e) = commands.get_entity(tile.entity) {
+				e.despawn_recursive();
+			}
 		}
 		if let Some(tile) = tile {
 			commands.entity(chunk.entity).add_child(tile.entity);
@@ -352,7 +354,9 @@ pub fn spawn_chunk(
 		),
 	));
 	if let Some(v) = map.0.get(&(chunk_pos.x, chunk_pos.y)) {
-		commands.entity(v.entity).despawn_recursive();
+		if let Some(e) = commands.get_entity(v.entity) {
+			e.despawn_recursive();
+		}
 	}
 	map.0.insert(
 		(chunk_pos.x, chunk_pos.y),
@@ -469,7 +473,9 @@ fn destroy_tile(
 				.tiles
 				.remove(&(local_coord.x_u8(), local_coord.y_u8()))
 			{
-				commands.entity(tile.entity).despawn_recursive();
+				if let Some(e) = commands.get_entity(tile.entity) {
+					e.despawn_recursive();
+				}
 			}
 		}
 		for x in -1..=1 {

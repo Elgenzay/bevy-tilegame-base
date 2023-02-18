@@ -13,7 +13,6 @@ use crate::{
 #[derive(Component)]
 pub struct Tile {
 	pub tile_type: TileType,
-	pub active: bool,
 	pub coordinate: Coordinate,
 }
 
@@ -22,11 +21,17 @@ pub enum TileType {
 	Gravel,
 	Moss,
 	Dirt,
+	Sand,
 }
 
 impl TileType {
 	pub fn all() -> Vec<TileType> {
-		vec![TileType::Gravel, TileType::Moss, TileType::Dirt]
+		vec![
+			TileType::Gravel,
+			TileType::Moss,
+			TileType::Dirt,
+			TileType::Sand,
+		]
 	}
 
 	pub fn get_name(&self) -> String {
@@ -34,12 +39,14 @@ impl TileType {
 			TileType::Gravel => "gravel".to_owned(),
 			TileType::Moss => "moss".to_owned(),
 			TileType::Dirt => "dirt".to_owned(),
+			TileType::Sand => "sand".to_owned(),
 		}
 	}
 
 	pub fn is_weighted(&self) -> bool {
 		match self {
 			TileType::Gravel => true,
+			TileType::Sand => true,
 			_ => false,
 		}
 	}
@@ -53,6 +60,7 @@ impl TileType {
 	pub fn get_granularity(&self) -> u8 {
 		match self {
 			TileType::Gravel => 1,
+			TileType::Sand => 2,
 			_ => 0,
 		}
 	}
@@ -97,7 +105,6 @@ pub fn create_tile(
 		.spawn((
 			Tile {
 				tile_type: tile_type,
-				active: false,
 				coordinate: tile_coord,
 			},
 			SpriteBundle {
