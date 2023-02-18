@@ -1,6 +1,6 @@
 # bevy-tilegame-base
-![5MjjwX](https://user-images.githubusercontent.com/13305014/219402641-40ac50b5-8ab7-4404-bc91-b2d7b1377fbd.gif)
+![woTRLk](https://user-images.githubusercontent.com/13305014/219868520-6a5bf73f-37d2-4739-a1b0-1c1a8ce2fb53.gif)
 
 
-This is an early-stage 2D tile-based game framework written in Rust using the [Bevy](https://github.com/bevyengine/bevy/) engine.  
-Although I'm developing this for personal use, anyone is welcome to use any/all of it [for any purpose and without any condition](https://github.com/Elgenzay/bevy-tilegame-base/blob/main/LICENSE).
+This is an early-stage 2D tile game written in Rust using the [Bevy](https://github.com/bevyengine/bevy/) engine.  
+Although I'm developing this for a personal project, anyone is welcome to use any/all of it [for any purpose and without any condition](https://github.com/Elgenzay/bevy-tilegame-base/blob/main/LICENSE).
