@@ -23,7 +23,7 @@ impl ConnectedNeighbors {
 		}
 	}
 
-	pub fn get_outline_index(self) -> usize {
+	pub fn get_outline_id(self) -> usize {
 		if self.top {
 			if self.bottom {
 				if self.left {

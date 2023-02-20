@@ -61,7 +61,7 @@ fn motion_tween(mut q_objects: Query<(&mut Transform, &Position)>) {
 		}
 		transform.translation = transform
 			.translation
-			.lerp(position.0.extend(transform.translation.z), 0.1);
+			.lerp(position.0.extend(transform.translation.z), 0.2);
 	}
 }
 
@@ -112,6 +112,9 @@ fn apply_velocity(
 						break 'outer;
 					}
 				}
+				//
+				// player is buried
+				//
 			}
 		}
 		if player_velocity.x == 0.0 && player_velocity.y == 0.0 {

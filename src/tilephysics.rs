@@ -8,10 +8,10 @@ use bevy::{
 };
 
 use crate::{
-	grid::{destroy_tile, Coordinate, Map, MapTile},
+	grid::{Coordinate, Map, MapTile},
 	sprites::Sprites,
 	tileoutline::ConnectedNeighbors,
-	tiles::{create_tile, FallingTile, Tile, WeightedTile},
+	tiles::{set_tile, FallingTile, Tile, TileType, WeightedTile},
 	TickTimer,
 };
 
@@ -29,21 +29,15 @@ pub fn update_tile(
 	map: Res<Map>,
 	mut ev_update: EventReader<UpdateTileEvent>,
 	mut commands: Commands,
-	q_tiles: Query<&Tile>,
 	sprites: Res<Sprites>,
 ) {
 	for ev in ev_update.iter() {
-		let tile = match q_tiles.get(ev.0.entity) {
-			Ok(v) => v,
-			Err(_) => continue,
-		};
-		let tile_coord = tile.coordinate.as_tile_coord();
-		if tile.tile_type.is_weighted() {
+		if ev.0.tile_type.is_weighted() {
 			if let Some(mut e) = commands.get_entity(ev.0.entity) {
-				e.insert(FallingTile(tile_coord.y_i32()));
+				e.insert(FallingTile(ev.0.coordinate.y_i32()));
 			}
 		}
-		update_sprite(tile_coord, &map, &mut commands, ev.0, &sprites)
+		update_sprite(ev.0.coordinate, &map, &mut commands, ev.0, &sprites)
 	}
 }
 
@@ -54,54 +48,57 @@ fn update_sprite(
 	maptile: MapTile,
 	sprites: &Sprites,
 ) {
-	let mut connected = ConnectedNeighbors::new();
-	for x in -1..=1 {
-		for y in -1..=1 {
-			if x == 0 && y == 0 {
-				continue;
-			}
-			let tile = map.get_tile(
-				coordinate
-					.as_tile_coord()
-					.moved(&Vec2::new(x as f32, y as f32)),
-			);
-			if match tile {
-				Ok(opt) => match opt {
-					Some(_) => true,
-					None => false,
-				},
-				Err(_) => false, //unloaded chunk
-			} {
-				match x {
-					-1 => match y {
-						-1 => connected.bottom_left = true,
-						0 => connected.left = true,
-						1 => connected.top_left = true,
-						_ => panic!(),
-					},
-					0 => match y {
-						-1 => connected.bottom = true,
-						1 => connected.top = true,
-						_ => panic!(),
-					},
-					1 => match y {
-						-1 => connected.bottom_right = true,
-						0 => connected.right = true,
-						1 => connected.top_right = true,
-						_ => panic!(),
-					},
-					_ => panic!(),
+	let outline_id = match maptile.tile_type {
+		TileType::Empty => 40, // no outline
+		_ => {
+			let mut connected = ConnectedNeighbors::new();
+			for x in -1..=1 {
+				for y in -1..=1 {
+					if x == 0 && y == 0 {
+						continue;
+					}
+					let tile = map.get_tile(
+						coordinate
+							.as_tile_coord()
+							.moved(&Vec2::new(x as f32, y as f32)),
+					);
+					if match tile {
+						Ok(t) => match t.tile_type {
+							TileType::Empty => false,
+							_ => true,
+						},
+						Err(_) => false, //unloaded chunk
+					} {
+						match x {
+							-1 => match y {
+								-1 => connected.bottom_left = true,
+								0 => connected.left = true,
+								1 => connected.top_left = true,
+								_ => panic!(),
+							},
+							0 => match y {
+								-1 => connected.bottom = true,
+								1 => connected.top = true,
+								_ => panic!(),
+							},
+							1 => match y {
+								-1 => connected.bottom_right = true,
+								0 => connected.right = true,
+								1 => connected.top_right = true,
+								_ => panic!(),
+							},
+							_ => panic!(),
+						}
+					}
 				}
 			}
+			connected.get_outline_id()
 		}
-	}
+	};
+
 	if let Some(mut e) = commands.get_entity(maptile.outline) {
 		e.insert(SpriteBundle {
-			texture: sprites
-				.tile_outlines
-				.get(connected.get_outline_index() - 1)
-				.unwrap()
-				.clone(),
+			texture: sprites.tile_outlines.get(outline_id - 1).unwrap().clone(),
 			transform: Transform {
 				translation: Vec3 {
 					x: 0.0,
@@ -140,13 +137,15 @@ fn apply_gravity(
 		match get_fall_coord(&map, current_position, tuple.2.granularity) {
 			Ok(opt) => match opt {
 				Some(coord) => {
-					destroy_tile(
-						current_position,
-						&mut map,
+					let _ = set_tile(
 						&mut commands,
+						current_position,
+						TileType::Empty,
+						&sprites,
+						&mut map,
 						&mut ev_updatetile,
 					);
-					let tile = if let Ok(t) = create_tile(
+					let tile = if let Ok(t) = set_tile(
 						&mut commands,
 						coord,
 						tuple.1.tile_type,
@@ -188,24 +187,24 @@ fn get_fall_coord(
 			let x_f32 = x_i8 as f32;
 			if x_i8 != 0 {
 				match map.get_tile(current_position.moved(&Vec2::new(x_f32, 0.0))) {
-					Ok(opt) => match opt {
-						Some(_) => {
+					Ok(t) => match t.tile_type {
+						TileType::Empty => (),
+						_ => {
 							if m == -1 {
 								left_blocked = true;
 							} else {
 								right_blocked = true;
 							}
 						}
-						None => (),
 					},
 					Err(()) => return Err(()),
 				}
 			}
 			let new_coord = current_position.moved(&Vec2::new(x_f32, -1.0));
 			match map.get_tile(new_coord) {
-				Ok(opt) => match opt {
-					Some(_) => continue,
-					None => return Ok(Some(new_coord)),
+				Ok(t) => match t.tile_type {
+					TileType::Empty => return Ok(Some(new_coord)),
+					_ => continue,
 				},
 				Err(()) => return Err(()),
 			}
