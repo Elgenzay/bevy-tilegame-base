@@ -1,3 +1,4 @@
+mod devtools;
 mod grid;
 mod inputs;
 mod playerphysics;
@@ -12,6 +13,7 @@ mod worldgen;
 
 use bevy::math::Vec3;
 use bevy::prelude::*;
+use devtools::DevTools;
 use grid::Grid;
 use inputs::Inputs;
 use playerphysics::{PlayerPhysics, Velocity};
@@ -27,6 +29,7 @@ const CHUNK_SIZE: (u8, u8) = (32, 32);
 const TILE_SIZE: UVec2 = UVec2::new(8, 8);
 const RENDER_DISTANCE: UVec2 = UVec2::new(3, 2);
 const UNRENDER_DISTANCE: UVec2 = UVec2::new(4, 3);
+const CAMERA_PROJECTION_SCALE: f32 = 0.4;
 
 const PLAYER_SIZE: UVec2 = UVec2::new(20, 36);
 const PLAYER_ACCEL: f32 = 1000.0;
@@ -71,6 +74,7 @@ fn main() {
 		.add_plugin(TilePhysics)
 		.add_plugin(Players)
 		.add_plugin(SpritesPlugin)
+		.add_plugin(DevTools)
 		.add_startup_system(startup)
 		.insert_resource(Settings {
 			..Default::default()
@@ -85,10 +89,13 @@ fn main() {
 
 fn startup(mut commands: Commands, mut windows: ResMut<Windows>, sprites: Res<Sprites>) {
 	let mut projection = OrthographicProjection::default();
-	projection.scale = 0.4;
+	projection.scale = CAMERA_PROJECTION_SCALE;
 	commands.spawn((
 		Camera2dBundle {
 			projection,
+			..Default::default()
+		},
+		VisibilityBundle {
 			..Default::default()
 		},
 		MainCamera,

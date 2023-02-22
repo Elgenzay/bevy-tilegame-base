@@ -1,0 +1,197 @@
+use bevy::{
+	input::mouse::MouseWheel,
+	prelude::{
+		App, BuildChildren, Color, Commands, Component, EventReader, EventWriter, Input, KeyCode,
+		MouseButton, NodeBundle, OrthographicProjection, Plugin, Query, Res, StartupStage,
+		TextBundle, Transform, Vec2, With,
+	},
+	text::{Text, TextAlignment, TextStyle},
+	ui::{FlexDirection, JustifyContent, Size, Style, UiRect, Val},
+};
+
+use crate::{
+	grid::{Coordinate, CreateTileEvent, DestroyTileEvent},
+	playerphysics::Position,
+	players::Player,
+	sprites::Sprites,
+	tiletypes::TileType,
+	Cursor, MainCamera, CAMERA_PROJECTION_SCALE,
+};
+
+pub struct DevTools;
+
+impl Plugin for DevTools {
+	fn build(&self, app: &mut App) {
+		app.add_system(place_tiles)
+			.add_system(camera_zoom)
+			.add_system(update_info)
+			.add_startup_system_to_stage(StartupStage::PostStartup, setup_devtools);
+	}
+}
+
+#[derive(Component)]
+struct DebugInfo;
+
+fn place_tiles(
+	q_cursor: Query<&Transform, With<Cursor>>,
+	mut ev_destroytile: EventWriter<DestroyTileEvent>,
+	mut ev_createtile: EventWriter<CreateTileEvent>,
+	kb_input: Res<Input<KeyCode>>,
+	m_input: Res<Input<MouseButton>>,
+	mut q_camera: Query<&mut OrthographicProjection, With<MainCamera>>,
+) {
+	if let Ok(cursor_pos) = q_cursor.get_single() {
+		let world_coord = Coordinate::world_coord_from_vec2(cursor_pos.translation.truncate());
+
+		if kb_input.pressed(KeyCode::Key1) {
+			ev_createtile.send(CreateTileEvent(world_coord, TileType::Sand));
+		} else if kb_input.pressed(KeyCode::Key2) {
+			ev_createtile.send(CreateTileEvent(world_coord, TileType::Dirt));
+		} else if kb_input.pressed(KeyCode::Key3) {
+			ev_createtile.send(CreateTileEvent(world_coord, TileType::Gravel));
+		} else if kb_input.pressed(KeyCode::Key4) {
+			ev_createtile.send(CreateTileEvent(world_coord, TileType::Moss));
+		}
+		if m_input.pressed(MouseButton::Left) {
+			for x in -1..=1 {
+				for y in -1..=1 {
+					ev_destroytile.send(DestroyTileEvent(
+						world_coord
+							.as_tile_coord()
+							.moved(&Vec2::new(x as f32, y as f32)),
+					));
+				}
+			}
+		}
+		if m_input.just_pressed(MouseButton::Middle) {
+			let mut camera_projection = q_camera.single_mut();
+			camera_projection.scale = CAMERA_PROJECTION_SCALE;
+		}
+	}
+}
+
+fn camera_zoom(
+	mut mouse_wheel_events: EventReader<MouseWheel>,
+	mut q_camera: Query<&mut OrthographicProjection, With<MainCamera>>,
+) {
+	for event in mouse_wheel_events.iter() {
+		if let Ok(mut camera_projection) = q_camera.get_single_mut() {
+			camera_projection.scale += {
+				if event.y > 0.0 {
+					-0.05
+				} else if event.y < 0.0 {
+					0.05
+				} else {
+					return;
+				}
+			};
+			if camera_projection.scale < 0.1 {
+				camera_projection.scale = 0.1;
+			}
+		};
+	}
+}
+
+fn setup_devtools(mut commands: Commands) {
+	let info = commands
+		.spawn((
+			TextBundle::from_section(
+				"",
+				TextStyle {
+					..Default::default()
+				},
+			)
+			.with_style(Style {
+				margin: UiRect::all(Val::Px(10.0)),
+				size: Size {
+					width: Val::Percent(100.0),
+					height: Val::Percent(100.0),
+				},
+				..Default::default()
+			})
+			.with_text_alignment(TextAlignment::TOP_LEFT),
+			DebugInfo,
+		))
+		.id();
+
+	let wrapper = commands
+		.spawn(NodeBundle {
+			style: Style {
+				flex_direction: FlexDirection::Column,
+				justify_content: JustifyContent::Center,
+				size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+				..Default::default()
+			},
+			..Default::default()
+		})
+		.id();
+
+	commands.entity(wrapper).add_child(info);
+}
+
+fn update_info(
+	mut q_info: Query<&mut Text, With<DebugInfo>>,
+	sprites: Res<Sprites>,
+	q_player: Query<(&Player, &Position)>,
+	q_cursor: Query<&Transform, With<Cursor>>,
+) {
+	if let Ok(mut t) = q_info.get_single_mut() {
+		let player_pos = {
+			let mut opt = None;
+			for p in q_player.iter() {
+				if let Player::Local = p.0 {
+					opt = Some(p.1);
+				}
+			}
+			if let Some(t) = opt {
+				t
+			} else {
+				panic!()
+			}
+		}
+		.0;
+		let cursor_pos = if let Ok(v) = q_cursor.get_single() {
+			v.translation.truncate()
+		} else {
+			Vec2::ZERO
+		};
+		let cursor_pos = Coordinate::world_coord_from_vec2(cursor_pos);
+		let player_pos = Coordinate::world_coord_from_vec2(player_pos);
+		let info = format!(
+			"
+			player pos   tile: ({},{})\n
+			            world: ({},{})\n
+			            chunk: ({},{})\n
+			       chunklocal: ({},{})\n
+			\n
+			cursor pos   tile: ({},{})\n
+			            world: ({},{})\n
+			            chunk: ({},{})\n
+			       chunklocal: ({},{})",
+			player_pos.as_tile_coord().x_i32(),
+			player_pos.as_tile_coord().y_i32(),
+			player_pos.x_i32(),
+			player_pos.y_i32(),
+			player_pos.as_chunk_coord().x_i32(),
+			player_pos.as_chunk_coord().y_i32(),
+			player_pos.as_chunklocal_coord().x_i32(),
+			player_pos.as_chunklocal_coord().y_i32(),
+			cursor_pos.as_tile_coord().x_i32(),
+			cursor_pos.as_tile_coord().y_i32(),
+			cursor_pos.x_i32(),
+			cursor_pos.y_i32(),
+			cursor_pos.as_chunk_coord().x_i32(),
+			cursor_pos.as_chunk_coord().y_i32(),
+			cursor_pos.as_chunklocal_coord().x_i32(),
+			cursor_pos.as_chunklocal_coord().y_i32(),
+		);
+		*t = Text::from_section(
+			info,
+			TextStyle {
+				font: sprites.fonts.get("pressstart2p").unwrap().clone(),
+				font_size: 10.0,
+				color: Color::WHITE,
+			},
+		)
+	};
+}

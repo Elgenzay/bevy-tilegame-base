@@ -1,14 +1,12 @@
 use crate::{
-	grid::{Coordinate, CreateTileEvent, DestroyTileEvent},
 	players::{Jumping, MoveDirection, Player},
 	settings::Settings,
-	tiletypes::TileType,
 	Cursor,
 };
 use bevy::{
 	prelude::{
-		App, Camera, EventWriter, GlobalTransform, Input, KeyCode, MouseButton, Plugin, Query, Res,
-		Transform, Vec2, Vec3, With,
+		App, Camera, GlobalTransform, Input, KeyCode, Plugin, Query, Res, Transform, Vec2, Vec3,
+		With,
 	},
 	render::camera::RenderTarget,
 	window::Windows,
@@ -116,9 +114,7 @@ fn mouse_events_system(
 	wnds: Res<Windows>,
 	q_camera: Query<(&Camera, &GlobalTransform), With<Camera>>,
 	mut q_cursor: Query<&mut Transform, With<Cursor>>,
-	input: Res<Input<MouseButton>>,
-	mut ev_destroytile: EventWriter<DestroyTileEvent>,
-	mut ev_createtile: EventWriter<CreateTileEvent>,
+	//input: Res<Input<MouseButton>>,
 ) {
 	let (camera, camera_transform) = match q_camera.get_single() {
 		Ok(v) => v,
@@ -136,29 +132,12 @@ fn mouse_events_system(
 		let world_pos = ndc_to_world.project_point3(ndc.extend(-1.0));
 		let world_pos: Vec2 = world_pos.truncate();
 		let cursorlocation = Vec3::new(world_pos.x.floor(), world_pos.y.floor(), 1.0);
-		let world_coord = Coordinate::world_coord_from_vec2(world_pos);
 		let mut cursor = match q_cursor.get_single_mut() {
 			Ok(v) => v,
 			Err(_) => return,
 		};
 		if cursor.translation != cursorlocation {
 			cursor.translation = cursorlocation;
-		}
-
-		if input.pressed(MouseButton::Right) {
-			ev_createtile.send(CreateTileEvent(world_coord, TileType::Sand));
-		}
-
-		if input.pressed(MouseButton::Left) {
-			for x in -1..=1 {
-				for y in -1..=1 {
-					ev_destroytile.send(DestroyTileEvent(
-						world_coord
-							.as_tile_coord()
-							.moved(&Vec2::new(x as f32, y as f32)),
-					));
-				}
-			}
 		}
 	}
 }

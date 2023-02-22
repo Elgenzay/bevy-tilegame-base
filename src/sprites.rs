@@ -2,6 +2,7 @@ use std::fs::read_dir;
 
 use bevy::{
 	prelude::{App, AssetServer, Commands, Handle, Image, Plugin, Res, Resource, StartupStage},
+	text::Font,
 	utils::HashMap,
 };
 
@@ -35,11 +36,18 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 		tile_outlines.push(asset_server.load(format!("tile_outlines/{}.png", x.to_string())));
 	}
 
+	let mut fonts = HashMap::new();
+	fonts.insert(
+		"pressstart2p".to_string(),
+		asset_server.load("fonts/PressStart2P/PressStart2P-Regular.ttf"),
+	);
+
 	commands.insert_resource(Sprites {
 		cursor: asset_server.load("cursor.png"),
 		player: asset_server.load("player.png"),
 		tiles,
 		tile_outlines,
+		fonts,
 	});
 }
 
@@ -49,4 +57,5 @@ pub struct Sprites {
 	pub player: Handle<Image>,
 	pub tiles: HashMap<String, Vec<Handle<Image>>>,
 	pub tile_outlines: Vec<Handle<Image>>,
+	pub fonts: HashMap<String, Handle<Font>>,
 }
