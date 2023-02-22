@@ -1,3 +1,5 @@
+use std::panic;
+
 use bevy::{
 	prelude::{
 		App, Commands, CoreStage, Entity, EventReader, EventWriter, Plugin, Query, Res, ResMut,
@@ -11,7 +13,8 @@ use crate::{
 	grid::{Coordinate, Map, MapTile},
 	sprites::Sprites,
 	tileoutline::ConnectedNeighbors,
-	tiles::{set_tile, FallingTile, Tile, TileType, WeightedTile},
+	tiles::{set_tile, FallingTile, Tile, WeightedTile},
+	tiletypes::TileType,
 	TickTimer,
 };
 
@@ -21,7 +24,7 @@ impl Plugin for TilePhysics {
 	fn build(&self, app: &mut App) {
 		app.add_system(apply_gravity)
 			.add_event::<UpdateTileEvent>()
-			.add_system_to_stage(CoreStage::PostUpdate, update_tile);
+			.add_system_to_stage(CoreStage::Last, update_tile);
 	}
 }
 
@@ -32,68 +35,69 @@ pub fn update_tile(
 	sprites: Res<Sprites>,
 ) {
 	for ev in ev_update.iter() {
-		if ev.0.tile_type.is_weighted() {
-			if let Some(mut e) = commands.get_entity(ev.0.entity) {
-				e.insert(FallingTile(ev.0.coordinate.y_i32()));
+		let tile = if let Ok(t) = map.get_tile(ev.0) {
+			t
+		} else {
+			continue;
+		};
+		if tile.tile_type.is_weighted() {
+			if let Some(mut e) = commands.get_entity(tile.entity) {
+				e.insert(FallingTile(ev.0.y_i32()));
 			}
 		}
-		update_sprite(ev.0.coordinate, &map, &mut commands, ev.0, &sprites)
+		update_outline_sprite(ev.0, &map, &mut commands, tile, &sprites)
 	}
 }
 
-fn update_sprite(
+fn update_outline_sprite(
 	coordinate: Coordinate,
 	map: &Map,
 	commands: &mut Commands,
 	maptile: MapTile,
 	sprites: &Sprites,
 ) {
-	let outline_id = match maptile.tile_type {
-		TileType::Empty => 40, // no outline
-		_ => {
-			let mut connected = ConnectedNeighbors::new();
-			for x in -1..=1 {
-				for y in -1..=1 {
-					if x == 0 && y == 0 {
-						continue;
-					}
-					let tile = map.get_tile(
-						coordinate
-							.as_tile_coord()
-							.moved(&Vec2::new(x as f32, y as f32)),
-					);
-					if match tile {
-						Ok(t) => match t.tile_type {
-							TileType::Empty => false,
-							_ => true,
-						},
-						Err(_) => false, //unloaded chunk
-					} {
-						match x {
-							-1 => match y {
-								-1 => connected.bottom_left = true,
-								0 => connected.left = true,
-								1 => connected.top_left = true,
-								_ => panic!(),
-							},
-							0 => match y {
-								-1 => connected.bottom = true,
-								1 => connected.top = true,
-								_ => panic!(),
-							},
-							1 => match y {
-								-1 => connected.bottom_right = true,
-								0 => connected.right = true,
-								1 => connected.top_right = true,
-								_ => panic!(),
-							},
+	let outline_id = if !maptile.tile_type.is_visible() {
+		40 // no outline
+	} else {
+		let mut connected = ConnectedNeighbors::new();
+		for x in -1..=1 {
+			for y in -1..=1 {
+				if x == 0 && y == 0 {
+					continue;
+				}
+				let tile = map.get_tile(
+					coordinate
+						.as_tile_coord()
+						.moved(&Vec2::new(x as f32, y as f32)),
+				);
+				if match tile {
+					Ok(t) => t.tile_type.is_solid(),
+					Err(_) => false, //unloaded chunk
+				} {
+					match x {
+						-1 => match y {
+							-1 => connected.bottom_left = true,
+							0 => connected.left = true,
+							1 => connected.top_left = true,
 							_ => panic!(),
-						}
+						},
+						0 => match y {
+							-1 => connected.bottom = true,
+							1 => connected.top = true,
+							_ => panic!(),
+						},
+						1 => match y {
+							-1 => connected.bottom_right = true,
+							0 => connected.right = true,
+							1 => connected.top_right = true,
+							_ => panic!(),
+						},
+						_ => panic!(),
 					}
 				}
 			}
-			connected.get_outline_id()
 		}
+		connected.get_outline_id()
 	};
 
 	if let Some(mut e) = commands.get_entity(maptile.outline) {
@@ -187,25 +191,27 @@ fn get_fall_coord(
 			let x_f32 = x_i8 as f32;
 			if x_i8 != 0 {
 				match map.get_tile(current_position.moved(&Vec2::new(x_f32, 0.0))) {
-					Ok(t) => match t.tile_type {
-						TileType::Empty => (),
-						_ => {
+					Ok(t) => {
+						if t.tile_type.is_solid() {
 							if m == -1 {
 								left_blocked = true;
 							} else {
 								right_blocked = true;
 							}
 						}
-					},
+					}
 					Err(()) => return Err(()),
 				}
 			}
 			let new_coord = current_position.moved(&Vec2::new(x_f32, -1.0));
 			match map.get_tile(new_coord) {
-				Ok(t) => match t.tile_type {
-					TileType::Empty => return Ok(Some(new_coord)),
-					_ => continue,
-				},
+				Ok(t) => {
+					if !t.tile_type.is_solid() {
+						return Ok(Some(new_coord));
+					} else {
+						continue;
+					}
+				}
 				Err(()) => return Err(()),
 			}
 		}
@@ -216,4 +222,4 @@ fn get_fall_coord(
 	Ok(None)
 }
 
-pub struct UpdateTileEvent(pub MapTile);
+pub struct UpdateTileEvent(pub Coordinate);

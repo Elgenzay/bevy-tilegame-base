@@ -2,7 +2,7 @@ use crate::{
 	grid::{Coordinate, CreateTileEvent, DestroyTileEvent},
 	players::{Jumping, MoveDirection, Player},
 	settings::Settings,
-	tiles::TileType,
+	tiletypes::TileType,
 	Cursor,
 };
 use bevy::{

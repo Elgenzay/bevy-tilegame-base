@@ -3,7 +3,8 @@ use crate::{
 	players::Player,
 	sprites::Sprites,
 	tilephysics::UpdateTileEvent,
-	tiles::{set_tile, TileType},
+	tiles::set_tile,
+	tiletypes::TileType,
 	worldgen::tiletype_at,
 	CHUNK_SIZE, RENDER_DISTANCE, TILE_SIZE, UNRENDER_DISTANCE,
 };
@@ -65,7 +66,7 @@ impl Region {
 pub struct Map(HashMap<(i32, i32), MapChunk>);
 
 impl Map {
-	pub fn get_tile(&self, coord: Coordinate) -> Result<&MapTile, ()> {
+	pub fn get_tile(&self, coord: Coordinate) -> Result<MapTile, ()> {
 		match coord {
 			Coordinate::Chunk { x: _, y: _ } => {
 				panic!("Chunk coordinate passed to get_tile()")
@@ -82,7 +83,7 @@ impl Map {
 				.tiles
 				.get(&(local_coord.x_u8(), local_coord.y_u8()))
 				.expect("Unexpected missing tile in loaded chunk");
-			return Ok(tile);
+			return Ok(*tile);
 		}
 		Err(()) // unloaded chunk
 	}
@@ -382,13 +383,10 @@ pub fn spawn_chunk(
 			};
 			for x in x_min..=x_max {
 				for y in y_min..=y_max {
-					let tile_coord = Coordinate::Tile {
+					ev_update.send(UpdateTileEvent(Coordinate::Tile {
 						x: chunk_coord.x_i32() * CHUNK_SIZE.0 as i32 + x as i32,
 						y: chunk_coord.y_i32() * CHUNK_SIZE.1 as i32 + y as i32,
-					};
-					if let Ok(t) = map.get_tile(tile_coord) {
-						ev_update.send(UpdateTileEvent(*t));
-					};
+					}));
 				}
 			}
 		}

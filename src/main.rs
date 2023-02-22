@@ -7,6 +7,7 @@ mod sprites;
 mod tileoutline;
 mod tilephysics;
 mod tiles;
+mod tiletypes;
 mod worldgen;
 
 use bevy::math::Vec3;

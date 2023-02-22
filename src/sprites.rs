@@ -5,7 +5,7 @@ use bevy::{
 	utils::HashMap,
 };
 
-use crate::tiles::TileType;
+use crate::tiletypes::TileType;
 
 pub struct SpritesPlugin;
 impl Plugin for SpritesPlugin {
@@ -17,8 +17,11 @@ impl Plugin for SpritesPlugin {
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 	let mut tiles = HashMap::new();
 	for tile_type in TileType::all() {
+		if !tile_type.is_visible() {
+			continue;
+		}
 		let mut images = Vec::new();
-		let tilename = tile_type.get_name();
+		let tilename = tile_type.get_sprite_dir_name();
 		for entry in read_dir(format!("assets/tiles/{}", tilename)).unwrap() {
 			let entry = entry.unwrap();
 			if let Some(filename) = entry.file_name().to_str() {
