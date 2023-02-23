@@ -44,7 +44,13 @@ const TERMINAL_VELOCITY: f32 = 500.0;
 const TICKRATE: f32 = 20.0;
 
 #[derive(Component)]
-struct Cursor;
+struct WorldCursor;
+
+#[derive(Component)]
+struct UIWrapper;
+
+#[derive(Component)]
+struct ScreenCursor;
 
 #[derive(Component)]
 struct MainCamera;
@@ -62,6 +68,7 @@ fn main() {
 						height: WINDOW_DEFAULT_HEIGHT,
 						resizable: true,
 						title: String::from("framework"),
+						cursor_visible: false,
 						..Default::default()
 					},
 					..default()
@@ -87,7 +94,7 @@ fn main() {
 		.run();
 }
 
-fn startup(mut commands: Commands, mut windows: ResMut<Windows>, sprites: Res<Sprites>) {
+fn startup(mut commands: Commands, sprites: Res<Sprites>) {
 	let mut projection = OrthographicProjection::default();
 	projection.scale = CAMERA_PROJECTION_SCALE;
 	commands.spawn((
@@ -101,21 +108,7 @@ fn startup(mut commands: Commands, mut windows: ResMut<Windows>, sprites: Res<Sp
 		MainCamera,
 	));
 
-	commands.spawn((
-		SpriteBundle {
-			transform: Transform::from_xyz(0.0, 0.0, -100.0),
-			texture: sprites.cursor.clone(),
-			sprite: Sprite {
-				..Default::default()
-			},
-			..default()
-		},
-		Cursor,
-	));
-	windows
-		.get_primary_mut()
-		.unwrap()
-		.set_cursor_visibility(false);
+	commands.spawn((WorldCursor, Transform::from_translation(Vec3::ZERO)));
 
 	commands.spawn((
 		SpriteBundle {
@@ -127,6 +120,36 @@ fn startup(mut commands: Commands, mut windows: ResMut<Windows>, sprites: Res<Sp
 			..Default::default()
 		},
 	));
+
+	let uiwrapper = commands
+		.spawn((
+			NodeBundle {
+				style: Style {
+					position_type: PositionType::Absolute,
+					size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+					..Default::default()
+				},
+				..Default::default()
+			},
+			UIWrapper,
+		))
+		.id();
+
+	let screencursor = commands
+		.spawn((
+			ScreenCursor,
+			ImageBundle {
+				style: Style {
+					size: Size::new(Val::Px(32.0), Val::Px(32.0)),
+					..default()
+				},
+				image: sprites.cursor.clone().into(),
+				..default()
+			},
+		))
+		.id();
+
+	commands.entity(uiwrapper).add_child(screencursor);
 
 	/*
 	commands.spawn((

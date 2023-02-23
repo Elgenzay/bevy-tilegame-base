@@ -1,12 +1,12 @@
 use bevy::{
 	input::mouse::MouseWheel,
 	prelude::{
-		App, BuildChildren, Color, Commands, Component, EventReader, EventWriter, Input, KeyCode,
-		MouseButton, NodeBundle, OrthographicProjection, Plugin, Query, Res, StartupStage,
-		TextBundle, Transform, Vec2, With,
+		App, BuildChildren, Color, Commands, Component, Entity, EventReader, EventWriter, Input,
+		KeyCode, MouseButton, OrthographicProjection, Plugin, Query, Res, StartupStage, TextBundle,
+		Transform, Vec2, With,
 	},
 	text::{Text, TextAlignment, TextStyle},
-	ui::{FlexDirection, JustifyContent, Size, Style, UiRect, Val},
+	ui::{PositionType, Style, UiRect, Val},
 };
 
 use crate::{
@@ -15,7 +15,7 @@ use crate::{
 	players::Player,
 	sprites::Sprites,
 	tiletypes::TileType,
-	Cursor, MainCamera, CAMERA_PROJECTION_SCALE,
+	MainCamera, UIWrapper, WorldCursor, CAMERA_PROJECTION_SCALE,
 };
 
 pub struct DevTools;
@@ -33,7 +33,7 @@ impl Plugin for DevTools {
 struct DebugInfo;
 
 fn place_tiles(
-	q_cursor: Query<&Transform, With<Cursor>>,
+	q_cursor: Query<&Transform, With<WorldCursor>>,
 	mut ev_destroytile: EventWriter<DestroyTileEvent>,
 	mut ev_createtile: EventWriter<CreateTileEvent>,
 	kb_input: Res<Input<KeyCode>>,
@@ -92,7 +92,7 @@ fn camera_zoom(
 	}
 }
 
-fn setup_devtools(mut commands: Commands) {
+fn setup_devtools(mut commands: Commands, q_wrapper: Query<Entity, With<UIWrapper>>) {
 	let info = commands
 		.spawn((
 			TextBundle::from_section(
@@ -102,10 +102,11 @@ fn setup_devtools(mut commands: Commands) {
 				},
 			)
 			.with_style(Style {
-				margin: UiRect::all(Val::Px(10.0)),
-				size: Size {
-					width: Val::Percent(100.0),
-					height: Val::Percent(100.0),
+				position_type: PositionType::Absolute,
+				position: UiRect {
+					top: Val::Px(10.0),
+					left: Val::Px(10.0),
+					..Default::default()
 				},
 				..Default::default()
 			})
@@ -114,26 +115,15 @@ fn setup_devtools(mut commands: Commands) {
 		))
 		.id();
 
-	let wrapper = commands
-		.spawn(NodeBundle {
-			style: Style {
-				flex_direction: FlexDirection::Column,
-				justify_content: JustifyContent::Center,
-				size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-				..Default::default()
-			},
-			..Default::default()
-		})
-		.id();
-
-	commands.entity(wrapper).add_child(info);
+	let w = q_wrapper.single();
+	commands.entity(w).add_child(info);
 }
 
 fn update_info(
 	mut q_info: Query<&mut Text, With<DebugInfo>>,
 	sprites: Res<Sprites>,
 	q_player: Query<(&Player, &Position)>,
-	q_cursor: Query<&Transform, With<Cursor>>,
+	q_cursor: Query<&Transform, With<WorldCursor>>,
 ) {
 	if let Ok(mut t) = q_info.get_single_mut() {
 		let player_pos = {

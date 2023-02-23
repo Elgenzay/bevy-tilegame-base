@@ -1,6 +1,6 @@
 use crate::{
 	playerphysics::{Gravity, Position},
-	Cursor, MainCamera, Velocity, PLAYER_ACCEL, PLAYER_AIR_CONTROL, PLAYER_AIR_FRICTION,
+	MainCamera, Velocity, WorldCursor, PLAYER_ACCEL, PLAYER_AIR_CONTROL, PLAYER_AIR_FRICTION,
 	PLAYER_JUMP_FORCE, PLAYER_SPEED,
 };
 use bevy::{
@@ -152,7 +152,7 @@ fn move_player(
 fn camera_follow(
 	mut q_camera: Query<&mut Transform, With<MainCamera>>,
 	q_player: Query<(&Player, &Position)>,
-	q_cursor: Query<&Transform, (With<Cursor>, Without<MainCamera>)>,
+	q_cursor: Query<&Transform, (With<WorldCursor>, Without<MainCamera>)>,
 ) {
 	let mut camera_transform = match q_camera.get_single_mut() {
 		Ok(v) => v,
