@@ -10,7 +10,7 @@ use bevy::{
 };
 
 use crate::{
-	grid::{Coordinate, CreateTileEvent, DestroyTileEvent},
+	grid::{Coordinate, CreateTileEvent, DestroyTileEvent, Map},
 	playerphysics::Position,
 	players::Player,
 	sprites::Sprites,
@@ -124,6 +124,7 @@ fn update_info(
 	sprites: Res<Sprites>,
 	q_player: Query<(&Player, &Position)>,
 	q_cursor: Query<&Transform, With<WorldCursor>>,
+	map: Res<Map>,
 ) {
 	if let Ok(mut t) = q_info.get_single_mut() {
 		let player_pos = {
@@ -147,6 +148,16 @@ fn update_info(
 		};
 		let cursor_pos = Coordinate::world_coord_from_vec2(cursor_pos);
 		let player_pos = Coordinate::world_coord_from_vec2(player_pos);
+		let (ct_name, ct_weighted, ct_granularity) = if let Ok(t) = map.get_tile(cursor_pos) {
+			(
+				t.tile_type.get_name(),
+				t.tile_type.is_weighted().to_string(),
+				t.tile_type.get_granularity().to_string(),
+			)
+		} else {
+			("null".to_owned(), "null".to_owned(), "null".to_owned())
+		};
+
 		let info = format!(
 			"
 			player pos   tile: ({},{})\n
@@ -157,7 +168,11 @@ fn update_info(
 			cursor pos   tile: ({},{})\n
 			            world: ({},{})\n
 			            chunk: ({},{})\n
-			       chunklocal: ({},{})",
+			       chunklocal: ({},{})\n
+			\n
+			cursor tile  name: {}\n
+			         weighted: {}\n
+			      granularity: {}",
 			player_pos.as_tile_coord().x_i32(),
 			player_pos.as_tile_coord().y_i32(),
 			player_pos.x_i32(),
@@ -174,7 +189,11 @@ fn update_info(
 			cursor_pos.as_chunk_coord().y_i32(),
 			cursor_pos.as_chunklocal_coord().x_i32(),
 			cursor_pos.as_chunklocal_coord().y_i32(),
+			ct_name,
+			ct_weighted,
+			ct_granularity
 		);
+
 		*t = Text::from_section(
 			info,
 			TextStyle {
