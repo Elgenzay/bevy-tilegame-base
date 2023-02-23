@@ -10,7 +10,7 @@ use bevy::{
 };
 
 use crate::{
-	grid::{Coordinate, Map, MapTile},
+	grid::{Coordinate, Map},
 	sprites::Sprites,
 	tileoutline::ConnectedNeighbors,
 	tiles::{set_tile, FallingTile, Tile, WeightedTile},
@@ -24,15 +24,17 @@ impl Plugin for TilePhysics {
 	fn build(&self, app: &mut App) {
 		app.add_system(apply_gravity)
 			.add_event::<UpdateTileEvent>()
-			.add_system_to_stage(CoreStage::Last, update_tile);
+			.add_event::<UpdateOutlineSpriteEvent>()
+			.add_system(update_tile)
+			.add_system_to_stage(CoreStage::Last, update_outline_sprite);
 	}
 }
 
 pub fn update_tile(
 	map: Res<Map>,
 	mut ev_update: EventReader<UpdateTileEvent>,
+	mut ev_update_outline: EventWriter<UpdateOutlineSpriteEvent>,
 	mut commands: Commands,
-	sprites: Res<Sprites>,
 ) {
 	for ev in ev_update.iter() {
 		let tile = if let Ok(t) = map.get_tile(ev.0) {
@@ -45,74 +47,80 @@ pub fn update_tile(
 				e.insert(FallingTile(ev.0.y_i32()));
 			}
 		}
-		update_outline_sprite(ev.0, &map, &mut commands, tile, &sprites)
+		ev_update_outline.send(UpdateOutlineSpriteEvent(ev.0));
 	}
 }
 
 fn update_outline_sprite(
-	coordinate: Coordinate,
-	map: &Map,
-	commands: &mut Commands,
-	maptile: MapTile,
-	sprites: &Sprites,
+	mut ev_update: EventReader<UpdateOutlineSpriteEvent>,
+	map: Res<Map>,
+	mut commands: Commands,
+	sprites: Res<Sprites>,
 ) {
-	let outline_id = if !maptile.tile_type.is_visible() {
-		40 // no outline
-	} else {
-		let mut connected = ConnectedNeighbors::new();
-		for x in -1..=1 {
-			for y in -1..=1 {
-				if x == 0 && y == 0 {
-					continue;
-				}
-				let tile = map.get_tile(
-					coordinate
-						.as_tile_coord()
-						.moved(&Vec2::new(x as f32, y as f32)),
-				);
-				if match tile {
-					Ok(t) => t.tile_type.is_solid(),
-					Err(_) => false, //unloaded chunk
-				} {
-					match x {
-						-1 => match y {
-							-1 => connected.bottom_left = true,
-							0 => connected.left = true,
-							1 => connected.top_left = true,
+	for ev in ev_update.iter() {
+		let maptile = if let Ok(t) = map.get_tile(ev.0) {
+			t
+		} else {
+			continue;
+		};
+		let outline_id = if !maptile.tile_type.is_visible() {
+			40 // no outline
+		} else {
+			let mut connected = ConnectedNeighbors::new();
+			for x in -1..=1 {
+				for y in -1..=1 {
+					if x == 0 && y == 0 {
+						continue;
+					}
+					let tile =
+						map.get_tile(ev.0.as_tile_coord().moved(&Vec2::new(x as f32, y as f32)));
+					if match tile {
+						Ok(t) => t.tile_type.is_solid(),
+						Err(_) => false, //unloaded chunk
+					} {
+						match x {
+							-1 => match y {
+								-1 => connected.bottom_left = true,
+								0 => connected.left = true,
+								1 => connected.top_left = true,
+								_ => panic!(),
+							},
+							0 => match y {
+								-1 => connected.bottom = true,
+								1 => connected.top = true,
+								_ => panic!(),
+							},
+							1 => match y {
+								-1 => connected.bottom_right = true,
+								0 => connected.right = true,
+								1 => connected.top_right = true,
+								_ => panic!(),
+							},
 							_ => panic!(),
-						},
-						0 => match y {
-							-1 => connected.bottom = true,
-							1 => connected.top = true,
-							_ => panic!(),
-						},
-						1 => match y {
-							-1 => connected.bottom_right = true,
-							0 => connected.right = true,
-							1 => connected.top_right = true,
-							_ => panic!(),
-						},
-						_ => panic!(),
+						}
 					}
 				}
 			}
-		}
-		connected.get_outline_id()
-	};
+			connected.get_outline_id()
+		};
 
-	if let Some(mut e) = commands.get_entity(maptile.outline) {
-		e.insert(SpriteBundle {
-			texture: sprites.tile_outlines.get(outline_id - 1).unwrap().clone(),
-			transform: Transform {
-				translation: Vec3 {
-					x: 0.0,
-					y: 0.0,
-					z: 1.0,
+		if let Some(mut e) = commands.get_entity(maptile.outline) {
+			if maptile.outline_id == outline_id {
+				continue;
+			}
+			e.insert(SpriteBundle {
+				texture: sprites.tile_outlines.get(outline_id - 1).unwrap().clone(),
+				transform: Transform {
+					translation: Vec3 {
+						x: 0.0,
+						y: 0.0,
+						z: 1.0,
+					},
+					..Default::default()
 				},
 				..Default::default()
-			},
-			..Default::default()
-		});
+			});
+		}
 	}
 }
 
@@ -223,3 +231,4 @@ fn get_fall_coord(
 }
 
 pub struct UpdateTileEvent(pub Coordinate);
+pub struct UpdateOutlineSpriteEvent(pub Coordinate);

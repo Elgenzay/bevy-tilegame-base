@@ -123,6 +123,7 @@ pub fn set_tile(
 
 	let new_maptile = MapTile {
 		tile_type,
+		outline_id: 50,
 		..maptile
 	};
 

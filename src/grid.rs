@@ -98,6 +98,7 @@ pub struct MapChunk {
 pub struct MapTile {
 	pub entity: Entity,
 	pub outline: Entity,
+	pub outline_id: usize,
 	pub tile_type: TileType,
 	pub coordinate: Coordinate,
 }
@@ -318,6 +319,7 @@ pub fn spawn_chunk(
 				MapTile {
 					entity: tile,
 					outline,
+					outline_id: 40,
 					tile_type: TileType::Empty,
 					coordinate: Coordinate::Tile {
 						x: (chunk_pos.x * CHUNK_SIZE.0 as i32) + x as i32,
