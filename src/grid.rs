@@ -10,9 +10,9 @@ use crate::{
 };
 use bevy::{
 	prelude::{
-		App, BuildChildren, Children, Commands, Component, Deref, DerefMut, DespawnRecursiveExt,
-		Entity, EventReader, EventWriter, IVec2, Plugin, Query, Res, ResMut, Resource, Transform,
-		Vec2, Vec3, VisibilityBundle, With,
+		App, BuildChildren, Children, Commands, Component, CoreStage, Deref, DerefMut,
+		DespawnRecursiveExt, Entity, EventReader, EventWriter, IVec2, Plugin, Query, Res, ResMut,
+		Resource, Transform, Vec2, Vec3, VisibilityBundle, With,
 	},
 	transform::TransformBundle,
 	utils::hashbrown::HashMap,
@@ -25,7 +25,7 @@ impl Plugin for Grid {
 		app.insert_resource(Map(HashMap::new()))
 			.add_event::<DestroyTileEvent>()
 			.add_event::<CreateTileEvent>()
-			.add_system(render_chunks)
+			.add_system_to_stage(CoreStage::PreUpdate, render_chunks)
 			.add_system(destroy_tile_event)
 			.add_system(create_tile_event);
 	}
@@ -100,7 +100,7 @@ pub struct MapTile {
 	pub outline: Entity,
 	pub outline_id: usize,
 	pub tile_type: TileType,
-	pub coordinate: Coordinate,
+	pub tile_coord: Coordinate,
 }
 
 #[derive(Clone, Copy)]
@@ -321,7 +321,7 @@ pub fn spawn_chunk(
 					outline,
 					outline_id: 40,
 					tile_type: TileType::Empty,
-					coordinate: Coordinate::Tile {
+					tile_coord: Coordinate::Tile {
 						x: (chunk_pos.x * CHUNK_SIZE.0 as i32) + x as i32,
 						y: (chunk_pos.y * CHUNK_SIZE.1 as i32) + y as i32,
 					},

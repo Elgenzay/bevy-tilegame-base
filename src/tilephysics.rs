@@ -10,7 +10,7 @@ use bevy::{
 };
 
 use crate::{
-	grid::{Coordinate, Map},
+	grid::{Coordinate, Map, MapTile},
 	sprites::Sprites,
 	tileoutline::ConnectedNeighbors,
 	tiles::{set_tile, FallingTile, Tile, WeightedTile},
@@ -25,16 +25,16 @@ impl Plugin for TilePhysics {
 		app.add_system(apply_gravity)
 			.add_event::<UpdateTileEvent>()
 			.add_event::<UpdateOutlineSpriteEvent>()
-			.add_system(update_tile)
-			.add_system_to_stage(CoreStage::Last, update_outline_sprite);
+			.add_system_to_stage(CoreStage::PreUpdate, update_outline_sprite_event)
+			.add_system_to_stage(CoreStage::PostUpdate, update_tile);
 	}
 }
 
 pub fn update_tile(
 	map: Res<Map>,
 	mut ev_update: EventReader<UpdateTileEvent>,
-	mut ev_update_outline: EventWriter<UpdateOutlineSpriteEvent>,
 	mut commands: Commands,
+	sprites: Res<Sprites>,
 ) {
 	for ev in ev_update.iter() {
 		let tile = if let Ok(t) = map.get_tile(ev.0) {
@@ -43,85 +43,83 @@ pub fn update_tile(
 			continue;
 		};
 		if tile.tile_type.is_weighted() {
-			if let Some(mut e) = commands.get_entity(tile.entity) {
-				e.insert(FallingTile(ev.0.y_i32()));
-			}
+			commands
+				.entity(tile.entity)
+				.insert(FallingTile(ev.0.y_i32()));
 		}
-		ev_update_outline.send(UpdateOutlineSpriteEvent(ev.0));
+		update_outline_sprite(tile, &mut commands, &sprites, &map);
 	}
 }
 
-fn update_outline_sprite(
+fn update_outline_sprite_event(
 	mut ev_update: EventReader<UpdateOutlineSpriteEvent>,
 	map: Res<Map>,
 	mut commands: Commands,
 	sprites: Res<Sprites>,
 ) {
 	for ev in ev_update.iter() {
-		let maptile = if let Ok(t) = map.get_tile(ev.0) {
-			t
-		} else {
-			continue;
-		};
-		let outline_id = if !maptile.tile_type.is_visible() {
-			40 // no outline
-		} else {
-			let mut connected = ConnectedNeighbors::new();
-			for x in -1..=1 {
-				for y in -1..=1 {
-					if x == 0 && y == 0 {
-						continue;
-					}
-					let tile =
-						map.get_tile(ev.0.as_tile_coord().moved(&Vec2::new(x as f32, y as f32)));
-					if match tile {
-						Ok(t) => t.tile_type.is_solid(),
-						Err(_) => false, //unloaded chunk
-					} {
-						match x {
-							-1 => match y {
-								-1 => connected.bottom_left = true,
-								0 => connected.left = true,
-								1 => connected.top_left = true,
-								_ => panic!(),
-							},
-							0 => match y {
-								-1 => connected.bottom = true,
-								1 => connected.top = true,
-								_ => panic!(),
-							},
-							1 => match y {
-								-1 => connected.bottom_right = true,
-								0 => connected.right = true,
-								1 => connected.top_right = true,
-								_ => panic!(),
-							},
+		if let Ok(maptile) = map.get_tile(ev.0) {
+			update_outline_sprite(maptile, &mut commands, &sprites, &map);
+		}
+	}
+}
+
+fn update_outline_sprite(maptile: MapTile, commands: &mut Commands, sprites: &Sprites, map: &Map) {
+	let outline_id = if !maptile.tile_type.is_visible() {
+		40 // no outline
+	} else {
+		let mut connected = ConnectedNeighbors::new();
+		for x in -1..=1 {
+			for y in -1..=1 {
+				if x == 0 && y == 0 {
+					continue;
+				}
+				let tile = map.get_tile(maptile.tile_coord.moved(&Vec2::new(x as f32, y as f32)));
+				if match tile {
+					Ok(t) => t.tile_type.is_solid(),
+					Err(_) => false, // unloaded chunk
+				} {
+					match x {
+						-1 => match y {
+							-1 => connected.bottom_left = true,
+							0 => connected.left = true,
+							1 => connected.top_left = true,
 							_ => panic!(),
-						}
+						},
+						0 => match y {
+							-1 => connected.bottom = true,
+							1 => connected.top = true,
+							_ => panic!(),
+						},
+						1 => match y {
+							-1 => connected.bottom_right = true,
+							0 => connected.right = true,
+							1 => connected.top_right = true,
+							_ => panic!(),
+						},
+						_ => panic!(),
 					}
 				}
 			}
-			connected.get_outline_id()
-		};
-
-		if let Some(mut e) = commands.get_entity(maptile.outline) {
-			if maptile.outline_id == outline_id {
-				continue;
-			}
-			e.insert(SpriteBundle {
-				texture: sprites.tile_outlines.get(outline_id - 1).unwrap().clone(),
-				transform: Transform {
-					translation: Vec3 {
-						x: 0.0,
-						y: 0.0,
-						z: 1.0,
-					},
-					..Default::default()
-				},
-				..Default::default()
-			});
 		}
+		connected.get_outline_id()
+	};
+
+	if maptile.outline_id == outline_id {
+		return;
 	}
+	commands.entity(maptile.outline).insert(SpriteBundle {
+		texture: sprites.tile_outlines.get(outline_id - 1).unwrap().clone(),
+		transform: Transform {
+			translation: Vec3 {
+				x: 0.0,
+				y: 0.0,
+				z: 1.0,
+			},
+			..Default::default()
+		},
+		..Default::default()
+	});
 }
 
 fn apply_gravity(
@@ -145,7 +143,7 @@ fn apply_gravity(
 	}
 	tuples.sort_by(|a, b| a.3.cmp(&b.3));
 	for tuple in tuples {
-		let current_position = tuple.1.coordinate.as_tile_coord();
+		let current_position = tuple.1.coord.as_tile_coord();
 		match get_fall_coord(&map, current_position, tuple.2.granularity) {
 			Ok(opt) => match opt {
 				Some(coord) => {
@@ -167,20 +165,18 @@ fn apply_gravity(
 					) {
 						t
 					} else {
-						continue; //unloaded chunk
+						continue; // unloaded chunk
 					};
-					if let Some(mut e) = commands.get_entity(tile.entity) {
-						e.insert(FallingTile(coord.y_i32()));
-					}
+					commands
+						.entity(tile.entity)
+						.insert(FallingTile(coord.y_i32()));
 				}
 				None => {
-					if let Some(mut e) = commands.get_entity(tuple.0) {
-						e.remove::<FallingTile>();
-					}
+					commands.entity(tuple.0).remove::<FallingTile>();
 					continue;
 				}
 			},
-			Err(()) => continue, //unloaded chunk
+			Err(()) => continue, // unloaded chunk
 		};
 	}
 }

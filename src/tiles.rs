@@ -15,7 +15,7 @@ use crate::{
 #[derive(Component)]
 pub struct Tile {
 	pub tile_type: TileType,
-	pub coordinate: Coordinate,
+	pub coord: Coordinate,
 }
 
 #[derive(Component)]
@@ -84,7 +84,7 @@ pub fn set_tile(
 		commands.entity(tile_entity).insert((
 			Tile {
 				tile_type,
-				coordinate: tile_coord,
+				coord: tile_coord,
 			},
 			SpriteBundle {
 				texture: texture_handle.get(i as usize).unwrap().clone(),

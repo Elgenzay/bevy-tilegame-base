@@ -53,9 +53,16 @@ fn place_tiles(
 		} else if kb_input.pressed(KeyCode::Key4) {
 			ev_createtile.send(CreateTileEvent(world_coord, TileType::Moss));
 		}
-		if m_input.pressed(MouseButton::Left) {
-			for x in -1..=1 {
-				for y in -1..=1 {
+		let size = if m_input.pressed(MouseButton::Left) {
+			1
+		} else if m_input.pressed(MouseButton::Right) {
+			10
+		} else {
+			0
+		};
+		if size != 0 {
+			for x in -size..=size {
+				for y in -size..=size {
 					ev_destroytile.send(DestroyTileEvent(
 						world_coord
 							.as_tile_coord()
