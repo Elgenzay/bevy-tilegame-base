@@ -2,10 +2,11 @@ use bevy::{
 	input::mouse::MouseWheel,
 	prelude::{
 		App, BuildChildren, Color, Commands, Component, Entity, EventReader, EventWriter, Input,
-		KeyCode, MouseButton, OrthographicProjection, Plugin, Query, Res, StartupStage, TextBundle,
-		Transform, Vec2, With,
+		KeyCode, MouseButton, OrthographicProjection, Plugin, Query, Res, ResMut, Resource,
+		StartupStage, TextBundle, Transform, Vec2, With,
 	},
 	text::{Text, TextAlignment, TextStyle},
+	time::Time,
 	ui::{PositionType, Style, UiRect, Val},
 };
 
@@ -93,6 +94,10 @@ fn camera_zoom(
 }
 
 fn setup_devtools(mut commands: Commands, q_wrapper: Query<Entity, With<UIWrapper>>) {
+	commands.insert_resource(FrameRate {
+		frame_times: vec![],
+		avg_frame_rate: 0.0,
+	});
 	let info = commands
 		.spawn((
 			TextBundle::from_section(
@@ -119,13 +124,30 @@ fn setup_devtools(mut commands: Commands, q_wrapper: Query<Entity, With<UIWrappe
 	commands.entity(w).add_child(info);
 }
 
+#[derive(Resource)]
+struct FrameRate {
+	frame_times: Vec<f32>,
+	avg_frame_rate: f32,
+}
+
 fn update_info(
 	mut q_info: Query<&mut Text, With<DebugInfo>>,
 	sprites: Res<Sprites>,
 	q_player: Query<(&Player, &Position)>,
 	q_cursor: Query<&Transform, With<WorldCursor>>,
 	map: Res<Map>,
+	time: Res<Time>,
+	mut framerate: ResMut<FrameRate>,
 ) {
+	let fps = 1.0 / time.delta_seconds();
+	framerate.frame_times.push(fps);
+
+	if framerate.frame_times.len() >= 60 {
+		let total_time: f32 = framerate.frame_times.iter().sum();
+		framerate.avg_frame_rate = total_time / 60.0;
+		framerate.frame_times.remove(0);
+	}
+
 	if let Ok(mut t) = q_info.get_single_mut() {
 		let player_pos = {
 			let mut opt = None;
@@ -160,6 +182,8 @@ fn update_info(
 
 		let info = format!(
 			"
+			FPS: {:.0}
+			\n
 			player pos   tile: ({},{})\n
 			            world: ({},{})\n
 			            chunk: ({},{})\n
@@ -173,6 +197,7 @@ fn update_info(
 			cursor tile  name: {}\n
 			         weighted: {}\n
 			      granularity: {}",
+			framerate.avg_frame_rate,
 			player_pos.as_tile_coord().x_i32(),
 			player_pos.as_tile_coord().y_i32(),
 			player_pos.x_i32(),
