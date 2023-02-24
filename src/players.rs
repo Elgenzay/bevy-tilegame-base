@@ -172,7 +172,7 @@ fn camera_follow(
 			);
 			camera_transform.translation = camera_transform
 				.translation
-				.lerp(target.lerp(cursor_transform.translation, 0.01), 0.02);
+				.lerp(target.lerp(cursor_transform.translation, 0.01), 0.03);
 			return;
 		}
 	}

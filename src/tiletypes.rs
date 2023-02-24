@@ -40,6 +40,12 @@ impl TileType {
 		.to_owned()
 	}
 
+	pub fn morph_sprite(&self) -> bool {
+		match self {
+			_ => true,
+		}
+	}
+
 	pub fn is_weighted(&self) -> bool {
 		match self {
 			TileType::Gravel => true,

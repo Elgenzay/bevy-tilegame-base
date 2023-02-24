@@ -25,7 +25,7 @@ impl Plugin for TilePhysics {
 		app.add_system(apply_gravity)
 			.add_event::<UpdateTileEvent>()
 			.add_event::<UpdateOutlineSpriteEvent>()
-			.add_system_to_stage(CoreStage::PreUpdate, update_outline_sprite_event)
+			.add_system_to_stage(CoreStage::Last, update_outline_sprite_event)
 			.add_system_to_stage(CoreStage::PostUpdate, update_tile);
 	}
 }
@@ -33,8 +33,8 @@ impl Plugin for TilePhysics {
 pub fn update_tile(
 	map: Res<Map>,
 	mut ev_update: EventReader<UpdateTileEvent>,
+	mut ev_update_outline: EventWriter<UpdateOutlineSpriteEvent>,
 	mut commands: Commands,
-	sprites: Res<Sprites>,
 ) {
 	for ev in ev_update.iter() {
 		let tile = if let Ok(t) = map.get_tile(ev.0) {
@@ -44,10 +44,10 @@ pub fn update_tile(
 		};
 		if tile.tile_type.is_weighted() {
 			commands
-				.entity(tile.entity)
+				.entity(tile.tile_entity)
 				.insert(FallingTile(ev.0.y_i32()));
 		}
-		update_outline_sprite(tile, &mut commands, &sprites, &map);
+		ev_update_outline.send(UpdateOutlineSpriteEvent(ev.0));
 	}
 }
 
@@ -108,18 +108,20 @@ fn update_outline_sprite(maptile: MapTile, commands: &mut Commands, sprites: &Sp
 	if maptile.outline_id == outline_id {
 		return;
 	}
-	commands.entity(maptile.outline).insert(SpriteBundle {
-		texture: sprites.tile_outlines.get(outline_id - 1).unwrap().clone(),
-		transform: Transform {
-			translation: Vec3 {
-				x: 0.0,
-				y: 0.0,
-				z: 1.0,
+	commands
+		.entity(maptile.outline_entity)
+		.insert(SpriteBundle {
+			texture: sprites.tile_outlines.get(outline_id - 1).unwrap().clone(),
+			transform: Transform {
+				translation: Vec3 {
+					x: 0.0,
+					y: 0.0,
+					z: 1.0,
+				},
+				..Default::default()
 			},
 			..Default::default()
-		},
-		..Default::default()
-	});
+		});
 }
 
 fn apply_gravity(
@@ -168,7 +170,7 @@ fn apply_gravity(
 						continue; // unloaded chunk
 					};
 					commands
-						.entity(tile.entity)
+						.entity(tile.tile_entity)
 						.insert(FallingTile(coord.y_i32()));
 				}
 				None => {

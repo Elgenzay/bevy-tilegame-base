@@ -96,8 +96,9 @@ pub struct MapChunk {
 
 #[derive(Clone, Copy)]
 pub struct MapTile {
-	pub entity: Entity,
-	pub outline: Entity,
+	pub tile_entity: Entity,
+	pub outline_entity: Entity,
+	pub sprite_entity: Entity,
 	pub outline_id: usize,
 	pub tile_type: TileType,
 	pub tile_coord: Coordinate,
@@ -310,15 +311,49 @@ pub fn spawn_chunk(
 	let mut tiles = HashMap::new();
 	for x in 0..CHUNK_SIZE.0 {
 		for y in 0..CHUNK_SIZE.1 {
-			let tile = commands.spawn_empty().id();
+			let x_f32 = x as f32;
+			let y_f32 = y as f32;
+			let tile = commands
+				.spawn((
+					VisibilityBundle {
+						..Default::default()
+					},
+					TransformBundle {
+						local: Transform {
+							translation: Vec3 {
+								x: x_f32 * tilesize_x_f32,
+								y: y_f32 * tilesize_y_f32,
+								z: 0.0,
+							},
+							..Default::default()
+						},
+						..Default::default()
+					},
+					Region::from_size(
+						&Vec2::new(
+							(x_f32 * TILE_SIZE.x as f32)
+								+ (chunk_pos.x as f32 * CHUNK_SIZE.0 as f32 * TILE_SIZE.x as f32)
+								- (tilesize_x_f32 * 0.5),
+							(y_f32 * tilesize_y_f32)
+								+ (chunk_pos.y as f32 * CHUNK_SIZE.1 as f32 * TILE_SIZE.y as f32)
+								- (TILE_SIZE.y as f32 * 0.5),
+						),
+						&Vec2::new(tilesize_x_f32, tilesize_y_f32),
+					),
+				))
+				.id();
 			let outline = commands.spawn_empty().id();
+
+			let sprite = commands.spawn_empty().id();
 			commands.entity(tile).add_child(outline);
+			commands.entity(tile).add_child(sprite);
 			commands.entity(chunk_entity).add_child(tile);
 			tiles.insert(
 				(x, y),
 				MapTile {
-					entity: tile,
-					outline,
+					tile_entity: tile,
+					sprite_entity: sprite,
+					outline_entity: outline,
 					outline_id: 40,
 					tile_type: TileType::Empty,
 					tile_coord: Coordinate::Tile {

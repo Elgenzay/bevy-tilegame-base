@@ -32,11 +32,11 @@ const UNRENDER_DISTANCE: UVec2 = UVec2::new(4, 3);
 const CAMERA_PROJECTION_SCALE: f32 = 0.4;
 
 const PLAYER_SIZE: UVec2 = UVec2::new(20, 36);
-const PLAYER_ACCEL: f32 = 1000.0;
+const PLAYER_ACCEL: f32 = 3000.0;
 const PLAYER_SPEED: f32 = 100.0;
 const PLAYER_JUMP_FORCE: f32 = 180.0;
 const PLAYER_UNSTUCK_NUDGE_SPEED: f32 = 50.0;
-const PLAYER_AIR_CONTROL: f32 = 0.25;
+const PLAYER_AIR_CONTROL: f32 = 0.10;
 const PLAYER_AIR_FRICTION: f32 = 50.0;
 
 const GRAVITY_SCALE: f32 = 500.0;
@@ -112,7 +112,7 @@ fn startup(mut commands: Commands, sprites: Res<Sprites>) {
 
 	commands.spawn((
 		SpriteBundle {
-			transform: Transform::from_translation(Vec3::ZERO),
+			transform: Transform::from_translation(Vec3::new(0.0, 0.0, -1.0)),
 			texture: sprites.player.clone(),
 			..Default::default()
 		},
