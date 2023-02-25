@@ -12,7 +12,7 @@ use bevy::{
 	prelude::{
 		App, BuildChildren, Children, Commands, Component, CoreStage, Deref, DerefMut,
 		DespawnRecursiveExt, Entity, EventReader, EventWriter, IVec2, Plugin, Query, Res, ResMut,
-		Resource, Transform, Vec2, Vec3, VisibilityBundle, With,
+		Resource, SystemStage, Transform, Vec2, Vec3, VisibilityBundle, With,
 	},
 	transform::TransformBundle,
 	utils::hashbrown::HashMap,
@@ -22,10 +22,17 @@ pub struct Grid;
 
 impl Plugin for Grid {
 	fn build(&self, app: &mut App) {
+		static LOAD_CHUNKS: &str = "loadchunk";
+
 		app.insert_resource(Map(HashMap::new()))
 			.add_event::<DestroyTileEvent>()
 			.add_event::<CreateTileEvent>()
-			.add_system_to_stage(CoreStage::PreUpdate, render_chunks)
+			.add_stage_before(
+				CoreStage::PreUpdate,
+				LOAD_CHUNKS,
+				SystemStage::single_threaded(),
+			)
+			.add_system_to_stage(LOAD_CHUNKS, render_chunks)
 			.add_system(destroy_tile_event)
 			.add_system(create_tile_event);
 	}
@@ -165,6 +172,14 @@ impl Coordinate {
 
 	pub fn world_coord_from_vec2(v: Vec2) -> Self {
 		Self::World { x: v.x, y: v.y }
+	}
+
+	pub fn as_world_coord(&self) -> Self {
+		let tile_coord = self.as_tile_coord();
+		Self::World {
+			x: tile_coord.x_f32() * TILE_SIZE.x as f32,
+			y: tile_coord.y_f32() * TILE_SIZE.y as f32,
+		}
 	}
 
 	pub fn as_tile_coord(&self) -> Self {

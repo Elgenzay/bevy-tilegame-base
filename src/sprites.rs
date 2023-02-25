@@ -45,6 +45,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 	commands.insert_resource(Sprites {
 		cursor: asset_server.load("cursor.png"),
 		player: asset_server.load("player.png"),
+		debugtilemarker: asset_server.load("debugtilemarker.png"),
 		tiles,
 		tile_outlines,
 		fonts,
@@ -55,6 +56,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
 pub struct Sprites {
 	pub cursor: Handle<Image>,
 	pub player: Handle<Image>,
+	pub debugtilemarker: Handle<Image>,
 	pub tiles: HashMap<String, Vec<Handle<Image>>>,
 	pub tile_outlines: Vec<Handle<Image>>,
 	pub fonts: HashMap<String, Handle<Font>>,

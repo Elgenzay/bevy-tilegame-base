@@ -1,4 +1,4 @@
-use std::panic;
+use std::{mem::discriminant, panic};
 
 use bevy::{
 	prelude::{
@@ -15,7 +15,7 @@ use crate::{
 	tileoutline::ConnectedNeighbors,
 	tiles::{set_tile, FallingTile, Tile, WeightedTile},
 	tiletypes::TileType,
-	TickTimer,
+	TickTimer, FLUID_PER_TILE,
 };
 
 pub struct TilePhysics;
@@ -25,16 +25,17 @@ impl Plugin for TilePhysics {
 		app.add_system(apply_gravity)
 			.add_event::<UpdateTileEvent>()
 			.add_event::<UpdateOutlineSpriteEvent>()
-			.add_system_to_stage(CoreStage::Last, update_outline_sprite_event)
-			.add_system_to_stage(CoreStage::PostUpdate, update_tile);
+			.add_system_to_stage(CoreStage::PostUpdate, update_outline_sprite_event)
+			.add_system_to_stage(CoreStage::PreUpdate, update_tile);
 	}
 }
 
 pub fn update_tile(
 	map: Res<Map>,
 	mut ev_update: EventReader<UpdateTileEvent>,
-	mut ev_update_outline: EventWriter<UpdateOutlineSpriteEvent>,
+	//mut ev_update_outline: EventWriter<UpdateOutlineSpriteEvent>,
 	mut commands: Commands,
+	sprites: Res<Sprites>,
 ) {
 	for ev in ev_update.iter() {
 		let tile = if let Ok(t) = map.get_tile(ev.0) {
@@ -45,9 +46,10 @@ pub fn update_tile(
 		if tile.tile_type.is_weighted() {
 			commands
 				.entity(tile.tile_entity)
-				.insert(FallingTile(ev.0.y_i32()));
+				.insert(FallingTile { y: ev.0.y_i32() });
 		}
-		ev_update_outline.send(UpdateOutlineSpriteEvent(ev.0));
+		//ev_update_outline.send(UpdateOutlineSpriteEvent(ev.0));
+		update_outline_sprite(tile, &mut commands, &sprites, &map);
 	}
 }
 
@@ -65,7 +67,7 @@ fn update_outline_sprite_event(
 }
 
 fn update_outline_sprite(maptile: MapTile, commands: &mut Commands, sprites: &Sprites, map: &Map) {
-	let outline_id = if !maptile.tile_type.is_visible() {
+	let outline_id = if !maptile.tile_type.is_visible() || maptile.tile_type.is_liquid() {
 		40 // no outline
 	} else {
 		let mut connected = ConnectedNeighbors::new();
@@ -138,15 +140,20 @@ fn apply_gravity(
 	}
 	let mut tuples = vec![];
 	for (entity, tile, weighted_tile, falling_tile) in q_falling_tile.iter_mut() {
-		tuples.push((entity, tile, weighted_tile, falling_tile.0));
+		tuples.push((entity, tile, weighted_tile, falling_tile.y));
 	}
 	if tuples.len() == 0 {
 		return;
 	}
 	tuples.sort_by(|a, b| a.3.cmp(&b.3));
 	for tuple in tuples {
+		let maptile = if let Ok(t) = map.get_tile(tuple.1.coord) {
+			t
+		} else {
+			continue;
+		};
 		let current_position = tuple.1.coord.as_tile_coord();
-		match get_fall_coord(&map, current_position, tuple.2.granularity) {
+		match get_fall_coord(&map, current_position, tuple.2.granularity, maptile) {
 			Ok(opt) => match opt {
 				Some(coord) => {
 					let _ = set_tile(
@@ -157,24 +164,26 @@ fn apply_gravity(
 						&mut map,
 						&mut ev_updatetile,
 					);
-					let tile = if let Ok(t) = set_tile(
+					let _ = set_tile(
 						&mut commands,
 						coord,
 						tuple.1.tile_type,
 						&sprites,
 						&mut map,
 						&mut ev_updatetile,
-					) {
-						t
-					} else {
-						continue; // unloaded chunk
-					};
-					commands
-						.entity(tile.tile_entity)
-						.insert(FallingTile(coord.y_i32()));
+					);
 				}
 				None => {
 					commands.entity(tuple.0).remove::<FallingTile>();
+					if maptile.tile_type.is_liquid() {
+						flow_liquid_tile(
+							&mut map,
+							maptile,
+							&mut commands,
+							&mut ev_updatetile,
+							&sprites,
+						);
+					}
 					continue;
 				}
 			},
@@ -183,36 +192,177 @@ fn apply_gravity(
 	}
 }
 
+fn flow_liquid_tile(
+	map: &mut Map,
+	maptile: MapTile,
+	commands: &mut Commands,
+	ev_updatetile: &mut EventWriter<UpdateTileEvent>,
+	sprites: &Sprites,
+) {
+	let below_coord = maptile.tile_coord.moved(&Vec2::NEG_Y);
+	if let Ok(t) = map.get_tile(below_coord) {
+		if discriminant(&t.tile_type) == discriminant(&maptile.tile_type) {
+			let this_level = maptile.tile_type.get_liquid_level();
+			let other_level = t.tile_type.get_liquid_level();
+			let other_emptiness = FLUID_PER_TILE - other_level;
+			if other_emptiness != 0 {
+				let this_remainder = other_level as i8 + this_level as i8 - FLUID_PER_TILE as i8;
+				let (new_level, new_other_level) = if this_remainder < 0 {
+					(0, other_level + this_level)
+				} else {
+					(this_remainder as u8, FLUID_PER_TILE)
+				};
+				let _ = set_tile(
+					commands,
+					maptile.tile_coord,
+					if new_level != 0 {
+						maptile.tile_type.with_liquid_level(new_level)
+					} else {
+						TileType::Empty
+					},
+					sprites,
+					map,
+					ev_updatetile,
+				);
+				let _ = set_tile(
+					commands,
+					below_coord,
+					maptile.tile_type.with_liquid_level(new_other_level),
+					sprites,
+					map,
+					ev_updatetile,
+				);
+				return;
+			}
+		}
+	}
+	if maptile.tile_type.get_liquid_level() == 1 {
+		return;
+	}
+
+	let get_level = |coord| {
+		return if let Ok(t) = map.get_tile(coord) {
+			if discriminant(&t.tile_type) == discriminant(&maptile.tile_type) {
+				t.tile_type.get_liquid_level() as i8 // existing liquid of same type
+			} else if !t.tile_type.is_solid() {
+				0 as i8 // can flow. interactions with other liquids go here
+			} else {
+				-1 as i8 // blocked by solid
+			}
+		} else {
+			-1 as i8 // unloaded chunk
+		};
+	};
+
+	let left_coord = maptile.tile_coord.moved(&Vec2::NEG_X);
+	let right_coord = maptile.tile_coord.moved(&Vec2::X);
+	let mut left_level = get_level(left_coord);
+	let mut right_level = get_level(right_coord);
+	if left_level == -1 && right_level == -1 {
+		return;
+	}
+	let left_level_initial = left_level;
+	let right_level_initial = right_level;
+	let mut this_level = maptile.tile_type.get_liquid_level() as i8;
+	let this_level_initial = maptile.tile_type.get_liquid_level() as i8;
+	let mut flow_left = true;
+	loop {
+		flow_left = !flow_left;
+		if this_level == 1 {
+			break;
+		}
+
+		let left_blocked = if left_level == -1 || left_level >= this_level {
+			true
+		} else {
+			false
+		};
+		let right_blocked = if right_level == -1 || right_level >= this_level {
+			true
+		} else {
+			false
+		};
+
+		flow_left = if left_blocked {
+			if right_blocked {
+				break;
+			} else {
+				false
+			}
+		} else {
+			if right_blocked {
+				true
+			} else {
+				flow_left
+			}
+		};
+
+		if flow_left {
+			left_level += 1;
+		} else {
+			right_level += 1;
+		}
+		this_level -= 1;
+	}
+	let mut set_liquid = |level: i8, level_initial, coord| {
+		if level > 0 {
+			if level != level_initial || level != FLUID_PER_TILE as i8 {
+				let _ = set_tile(
+					commands,
+					coord,
+					maptile.tile_type.with_liquid_level(level as u8),
+					sprites,
+					map,
+					ev_updatetile,
+				);
+			}
+		}
+	};
+	set_liquid(left_level, left_level_initial, left_coord);
+	set_liquid(right_level, right_level_initial, right_coord);
+	set_liquid(this_level, this_level_initial, maptile.tile_coord);
+}
+
 fn get_fall_coord(
 	map: &Map,
 	current_position: Coordinate,
 	granularity: u8,
+	maptile: MapTile,
 ) -> Result<Option<Coordinate>, ()> {
 	let current_position = current_position.as_tile_coord();
-	for x_abs in 0..=granularity {
-		let mut left_blocked = false;
-		let mut right_blocked = false;
+	let mut left_blocked = false;
+	let mut right_blocked = false;
+	'outer: for x_abs in 0..=granularity {
 		for m in [-1, 1] {
+			if (left_blocked && m == -1) || (right_blocked && m == 1) {
+				continue;
+			}
 			let x_i8 = x_abs as i8 * m as i8;
 			let x_f32 = x_i8 as f32;
 			if x_i8 != 0 {
 				match map.get_tile(current_position.moved(&Vec2::new(x_f32, 0.0))) {
 					Ok(t) => {
-						if t.tile_type.is_solid() {
+						if maptile.tile_type.is_obstructed_by(t.tile_type) {
 							if m == -1 {
 								left_blocked = true;
 							} else {
 								right_blocked = true;
+							}
+							if left_blocked && right_blocked {
+								break 'outer;
 							}
 						}
 					}
 					Err(()) => return Err(()),
 				}
 			}
+			if (left_blocked && m == -1) || (right_blocked && m == 1) {
+				continue;
+			}
 			let new_coord = current_position.moved(&Vec2::new(x_f32, -1.0));
 			match map.get_tile(new_coord) {
 				Ok(t) => {
-					if !t.tile_type.is_solid() {
+					if !maptile.tile_type.is_obstructed_by(t.tile_type) {
 						return Ok(Some(new_coord));
 					} else {
 						continue;

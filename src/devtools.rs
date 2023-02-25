@@ -3,8 +3,9 @@ use bevy::{
 	prelude::{
 		App, BuildChildren, Color, Commands, Component, Entity, EventReader, EventWriter, Input,
 		KeyCode, MouseButton, OrthographicProjection, Plugin, Query, Res, ResMut, Resource,
-		StartupStage, TextBundle, Transform, Vec2, With,
+		StartupStage, TextBundle, Transform, Vec2, Vec3, With,
 	},
+	sprite::SpriteBundle,
 	text::{Text, TextAlignment, TextStyle},
 	time::Time,
 	ui::{PositionType, Style, UiRect, Val},
@@ -15,8 +16,9 @@ use crate::{
 	playerphysics::Position,
 	players::Player,
 	sprites::Sprites,
+	tilephysics::UpdateTileEvent,
 	tiletypes::TileType,
-	MainCamera, UIWrapper, WorldCursor, CAMERA_PROJECTION_SCALE,
+	MainCamera, UIWrapper, WorldCursor, CAMERA_PROJECTION_SCALE, FLUID_PER_TILE,
 };
 
 pub struct DevTools;
@@ -26,6 +28,8 @@ impl Plugin for DevTools {
 		app.add_system(place_tiles)
 			.add_system(camera_zoom)
 			.add_system(update_info)
+			.add_system(tileupdate)
+			.add_system(tickmarkers)
 			.add_startup_system_to_stage(StartupStage::PostStartup, setup_devtools);
 	}
 }
@@ -52,6 +56,11 @@ fn place_tiles(
 			ev_createtile.send(CreateTileEvent(world_coord, TileType::Gravel));
 		} else if kb_input.pressed(KeyCode::Key4) {
 			ev_createtile.send(CreateTileEvent(world_coord, TileType::Moss));
+		} else if kb_input.pressed(KeyCode::Key5) {
+			ev_createtile.send(CreateTileEvent(
+				world_coord,
+				TileType::Water(FLUID_PER_TILE),
+			));
 		}
 		let size = if m_input.pressed(MouseButton::Left) {
 			1
@@ -177,15 +186,22 @@ fn update_info(
 		};
 		let cursor_pos = Coordinate::world_coord_from_vec2(cursor_pos);
 		let player_pos = Coordinate::world_coord_from_vec2(player_pos);
-		let (ct_name, ct_weighted, ct_granularity) = if let Ok(t) = map.get_tile(cursor_pos) {
-			(
-				t.tile_type.get_name(),
-				t.tile_type.is_weighted().to_string(),
-				t.tile_type.get_granularity().to_string(),
-			)
-		} else {
-			("null".to_owned(), "null".to_owned(), "null".to_owned())
-		};
+		let (ct_name, ct_weighted, ct_granularity, ct_liquidlevel) =
+			if let Ok(t) = map.get_tile(cursor_pos) {
+				(
+					t.tile_type.get_name(),
+					t.tile_type.is_weighted().to_string(),
+					t.tile_type.get_granularity().to_string(),
+					t.tile_type.get_liquid_level().to_string(),
+				)
+			} else {
+				(
+					"null".to_owned(),
+					"null".to_owned(),
+					"null".to_owned(),
+					"null".to_owned(),
+				)
+			};
 
 		let info = format!(
 			"
@@ -203,7 +219,8 @@ fn update_info(
 			\n
 			cursor tile  name: {}\n
 			         weighted: {}\n
-			      granularity: {}",
+			      granularity: {}\n
+			     liquid level: {}",
 			framerate.avg_frame_rate,
 			player_pos.as_tile_coord().x_i32(),
 			player_pos.as_tile_coord().y_i32(),
@@ -223,7 +240,8 @@ fn update_info(
 			cursor_pos.as_chunklocal_coord().y_i32(),
 			ct_name,
 			ct_weighted,
-			ct_granularity
+			ct_granularity,
+			ct_liquidlevel
 		);
 
 		*t = Text::from_section(
@@ -236,3 +254,41 @@ fn update_info(
 		)
 	};
 }
+
+fn tileupdate(
+	mut commands: Commands,
+	mut ev_update: EventReader<UpdateTileEvent>,
+	sprites: Res<Sprites>,
+	kb_input: Res<Input<KeyCode>>,
+) {
+	if !kb_input.pressed(KeyCode::E) {
+		return;
+	}
+	for ev in ev_update.iter() {
+		let world_coord = ev.0.as_world_coord();
+		commands.spawn((
+			SpriteBundle {
+				texture: sprites.debugtilemarker.clone(),
+				transform: Transform::from_translation(Vec3::new(
+					world_coord.x_f32(),
+					world_coord.y_f32(),
+					0.0,
+				)),
+				..Default::default()
+			},
+			UpdateMarker(3),
+		));
+	}
+}
+
+fn tickmarkers(mut commands: Commands, mut q_markers: Query<(Entity, &mut UpdateMarker)>) {
+	for (entity, mut updatemarker) in q_markers.iter_mut() {
+		updatemarker.0 -= 1;
+		if updatemarker.0 == 0 {
+			commands.entity(entity).despawn();
+		}
+	}
+}
+
+#[derive(Component)]
+struct UpdateMarker(u8);

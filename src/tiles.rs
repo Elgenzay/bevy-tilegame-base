@@ -20,11 +20,12 @@ pub struct Tile {
 #[derive(Component)]
 pub struct WeightedTile {
 	pub granularity: u8,
-	pub liquid: bool,
 }
 
 #[derive(Component, Ord, Eq, PartialEq, PartialOrd)]
-pub struct FallingTile(pub i32);
+pub struct FallingTile {
+	pub y: i32,
+}
 
 pub fn set_tile(
 	commands: &mut Commands,
@@ -60,7 +61,7 @@ pub fn set_tile(
 				},
 				..Default::default()
 			},));
-	} else {
+	} else if !tile_type.is_liquid() {
 		let texture_handle = sprites.tiles.get(&tile_type.get_sprite_dir_name()).unwrap();
 		let mut i = tile_coord.x_i32() * tile_coord.y_i32();
 		if i == 0 {
@@ -87,13 +88,6 @@ pub fn set_tile(
 		i = i / 10;
 		i = i.abs() % texture_handle.len() as i32;
 
-		commands.entity(maptile.tile_entity).insert((
-			Tile {
-				tile_type,
-				coord: tile_coord,
-			},
-			Collider,
-		));
 		commands.entity(maptile.sprite_entity).insert(SpriteBundle {
 			texture: texture_handle.get(i as usize).unwrap().clone(),
 			transform: Transform {
@@ -103,11 +97,29 @@ pub fn set_tile(
 			},
 			..Default::default()
 		});
+	} else {
+		let texture_handle = sprites.tiles.get(&tile_type.get_sprite_dir_name()).unwrap();
+		let t = texture_handle
+			.get(tile_type.get_liquid_level() as usize - 1)
+			.expect("Missing liquid tile texture");
+		commands.entity(maptile.sprite_entity).insert(SpriteBundle {
+			texture: t.clone(),
+			..Default::default()
+		});
 	}
+
+	commands.entity(maptile.tile_entity).insert(Tile {
+		tile_type,
+		coord: tile_coord,
+	});
+
+	if tile_type.is_solid() {
+		commands.entity(maptile.tile_entity).insert(Collider);
+	}
+
 	if tile_type.is_weighted() {
 		commands.entity(maptile.tile_entity).insert(WeightedTile {
 			granularity: tile_type.get_granularity(),
-			liquid: tile_type.is_liquid(),
 		});
 	} else {
 		commands
