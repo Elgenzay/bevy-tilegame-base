@@ -6,16 +6,15 @@ use bevy::{
 		Transform, Vec2, Vec3,
 	},
 	sprite::SpriteBundle,
-	time::Time,
 };
 
 use crate::{
-	grid::{Coordinate, Map, MapTile},
+	grid::{xorshift_from_coord, Coordinate, Map, MapTile},
 	sprites::Sprites,
 	tileoutline::ConnectedNeighbors,
 	tiles::{set_tile, FallingTile, Tile, WeightedTile},
 	tiletypes::TileType,
-	TickTimer, FLUID_PER_TILE,
+	TickEvent, FLUID_PER_TILE,
 };
 
 pub struct TilePhysics;
@@ -130,65 +129,63 @@ fn apply_gravity(
 	mut q_falling_tile: Query<(Entity, &Tile, &WeightedTile, &FallingTile)>,
 	mut map: ResMut<Map>,
 	mut commands: Commands,
-	time: Res<Time>,
-	mut timer: ResMut<TickTimer>,
 	mut ev_updatetile: EventWriter<UpdateTileEvent>,
+	mut tick: EventReader<TickEvent>,
 	sprites: Res<Sprites>,
 ) {
-	if !timer.0.tick(time.delta()).just_finished() {
-		return;
-	}
-	let mut tuples = vec![];
-	for (entity, tile, weighted_tile, falling_tile) in q_falling_tile.iter_mut() {
-		tuples.push((entity, tile, weighted_tile, falling_tile.y));
-	}
-	if tuples.len() == 0 {
-		return;
-	}
-	tuples.sort_by(|a, b| a.3.cmp(&b.3));
-	for tuple in tuples {
-		let maptile = if let Ok(t) = map.get_tile(tuple.1.coord) {
-			t
-		} else {
-			continue;
-		};
-		let current_position = tuple.1.coord.as_tile_coord();
-		match get_fall_coord(&map, current_position, tuple.2.granularity, maptile) {
-			Ok(opt) => match opt {
-				Some(coord) => {
-					let _ = set_tile(
-						&mut commands,
-						current_position,
-						TileType::Empty,
-						&sprites,
-						&mut map,
-						&mut ev_updatetile,
-					);
-					let _ = set_tile(
-						&mut commands,
-						coord,
-						tuple.1.tile_type,
-						&sprites,
-						&mut map,
-						&mut ev_updatetile,
-					);
-				}
-				None => {
-					commands.entity(tuple.0).remove::<FallingTile>();
-					if maptile.tile_type.is_liquid() {
-						flow_liquid_tile(
-							&mut map,
-							maptile,
+	for _ in tick.iter() {
+		let mut tuples = vec![];
+		for (entity, tile, weighted_tile, falling_tile) in q_falling_tile.iter_mut() {
+			tuples.push((entity, tile, weighted_tile, falling_tile.y));
+		}
+		if tuples.len() == 0 {
+			return;
+		}
+		tuples.sort_by(|a, b| a.3.cmp(&b.3));
+		for tuple in tuples {
+			let maptile = if let Ok(t) = map.get_tile(tuple.1.coord) {
+				t
+			} else {
+				continue;
+			};
+			let current_position = tuple.1.coord.as_tile_coord();
+			match get_fall_coord(&map, current_position, tuple.2.granularity, maptile) {
+				Ok(opt) => match opt {
+					Some(coord) => {
+						let _ = set_tile(
 							&mut commands,
-							&mut ev_updatetile,
+							current_position,
+							TileType::Empty,
 							&sprites,
+							&mut map,
+							&mut ev_updatetile,
+						);
+						let _ = set_tile(
+							&mut commands,
+							coord,
+							tuple.1.tile_type,
+							&sprites,
+							&mut map,
+							&mut ev_updatetile,
 						);
 					}
-					continue;
-				}
-			},
-			Err(()) => continue, // unloaded chunk
-		};
+					None => {
+						commands.entity(tuple.0).remove::<FallingTile>();
+						if maptile.tile_type.is_liquid() {
+							flow_liquid_tile(
+								&mut map,
+								maptile,
+								&mut commands,
+								&mut ev_updatetile,
+								&sprites,
+							);
+						}
+						continue;
+					}
+				},
+				Err(()) => continue, // unloaded chunk
+			};
+		}
 	}
 }
 
@@ -202,10 +199,10 @@ fn flow_liquid_tile(
 	let below_coord = maptile.tile_coord.moved(&Vec2::NEG_Y);
 	if let Ok(t) = map.get_tile(below_coord) {
 		if discriminant(&t.tile_type) == discriminant(&maptile.tile_type) {
-			let this_level = maptile.tile_type.get_liquid_level();
 			let other_level = t.tile_type.get_liquid_level();
 			let other_emptiness = FLUID_PER_TILE - other_level;
 			if other_emptiness != 0 {
+				let this_level = maptile.tile_type.get_liquid_level();
 				let this_remainder = other_level as i8 + this_level as i8 - FLUID_PER_TILE as i8;
 				let (new_level, new_other_level) = if this_remainder < 0 {
 					(0, other_level + this_level)
@@ -265,7 +262,7 @@ fn flow_liquid_tile(
 	let right_level_initial = right_level;
 	let mut this_level = maptile.tile_type.get_liquid_level() as i8;
 	let this_level_initial = maptile.tile_type.get_liquid_level() as i8;
-	let mut flow_left = true;
+	let mut flow_left = xorshift_from_coord(maptile.tile_coord) % 2 == 0;
 	loop {
 		flow_left = !flow_left;
 		if this_level == 1 {
@@ -332,8 +329,13 @@ fn get_fall_coord(
 	let current_position = current_position.as_tile_coord();
 	let mut left_blocked = false;
 	let mut right_blocked = false;
+	let directions = if xorshift_from_coord(current_position) % 2 == 0 {
+		[-1, 1]
+	} else {
+		[1, -1]
+	};
 	'outer: for x_abs in 0..=granularity {
-		for m in [-1, 1] {
+		for m in directions {
 			if (left_blocked && m == -1) || (right_blocked && m == 1) {
 				continue;
 			}

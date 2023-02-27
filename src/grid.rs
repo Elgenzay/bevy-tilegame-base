@@ -576,5 +576,19 @@ pub fn create_tile_event(
 	}
 }
 
+pub fn xorshift_from_coord(coord: Coordinate) -> i32 {
+	let mut i = coord.x_i32() * coord.y_i32();
+	if i == 0 {
+		i = coord.x_i32() + coord.y_i32();
+	}
+
+	// George Marsaglia's Xorshift
+	i ^= i << 13;
+	i ^= i >> 17;
+	i ^= i << 5;
+
+	i / 10
+}
+
 pub struct DestroyTileEvent(pub Coordinate);
 pub struct CreateTileEvent(pub Coordinate, pub TileType);

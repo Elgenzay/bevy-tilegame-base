@@ -77,6 +77,7 @@ fn main() {
 				})
 				.set(ImagePlugin::default_nearest()),
 		)
+		.add_event::<TickEvent>()
 		.add_plugin(Inputs)
 		.add_plugin(Grid)
 		.add_plugin(PlayerPhysics)
@@ -85,6 +86,7 @@ fn main() {
 		.add_plugin(SpritesPlugin)
 		.add_plugin(DevTools)
 		.add_startup_system(startup)
+		.add_system(tick)
 		.insert_resource(Settings {
 			..Default::default()
 		})
@@ -167,3 +169,11 @@ fn startup(mut commands: Commands, sprites: Res<Sprites>) {
 	));
 	*/
 }
+
+fn tick(time: Res<Time>, mut timer: ResMut<TickTimer>, mut ev: EventWriter<TickEvent>) {
+	if timer.0.tick(time.delta()).just_finished() {
+		ev.send(TickEvent);
+	}
+}
+
+pub struct TickEvent;

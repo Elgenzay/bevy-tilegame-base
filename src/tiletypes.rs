@@ -46,7 +46,10 @@ impl TileType {
 			TileType::Dirt => "dirt",
 			TileType::Sand => "sand",
 			TileType::Water(_) => "water",
-			_ => panic!("Tried to get_sprite_dir_name() of an invisible tiletype"),
+			_ => panic!(
+				"get_sprite_dir_name() not implemented for passed tiletype: {}",
+				self.get_name()
+			),
 		}
 		.to_owned()
 	}
@@ -123,7 +126,10 @@ impl TileType {
 	pub fn with_liquid_level(&self, level: u8) -> TileType {
 		match self {
 			TileType::Water(_) => TileType::Water(level),
-			_ => panic!("with_liquid_level() not implemented for passed tiletype"),
+			_ => panic!(
+				"with_liquid_level() not implemented for passed tiletype: {}",
+				self.get_name()
+			),
 		}
 	}
 

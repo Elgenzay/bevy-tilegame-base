@@ -4,7 +4,7 @@ use bevy::{
 };
 
 use crate::{
-	grid::{Coordinate, Map, MapTile},
+	grid::{xorshift_from_coord, Coordinate, Map, MapTile},
 	playerphysics::Collider,
 	sprites::Sprites,
 	tilephysics::UpdateTileEvent,
@@ -44,13 +44,11 @@ pub fn set_tile(
 	} else {
 		return Err(());
 	};
+
+	commands.entity(maptile.tile_entity).remove::<FallingTile>();
+
 	if !tile_type.is_visible() {
-		commands
-			.entity(maptile.tile_entity)
-			.remove::<WeightedTile>()
-			.remove::<Tile>()
-			.remove::<FallingTile>()
-			.remove::<Collider>();
+		commands.entity(maptile.tile_entity).remove::<Tile>();
 		commands
 			.entity(maptile.sprite_entity)
 			.insert((SpriteBundle {
@@ -63,19 +61,13 @@ pub fn set_tile(
 			},));
 	} else if !tile_type.is_liquid() {
 		let texture_handle = sprites.tiles.get(&tile_type.get_sprite_dir_name()).unwrap();
-		let mut i = tile_coord.x_i32() * tile_coord.y_i32();
-		if i == 0 {
-			i = tile_coord.x_i32() + tile_coord.y_i32();
-		}
 
-		// George Marsaglia's Xorshift
-		i ^= i << 13;
-		i ^= i >> 17;
-		i ^= i << 5;
+		let mut i = xorshift_from_coord(tile_coord);
+
 		let (rot, scale) = if tile_type.morph_sprite() {
 			(
 				(i % 4) as f32 * 1.5708,
-				match (i / 100) % 3 {
+				match (i / 10) % 3 {
 					1 => (1.0, -1.0), // flip vertical
 					2 => (-1.0, 1.0), // flip horizontal
 					_ => (1.0, 1.0),  // no flip
@@ -84,8 +76,6 @@ pub fn set_tile(
 		} else {
 			(0.0, (1.0, 1.0))
 		};
-
-		i = i / 10;
 		i = i.abs() % texture_handle.len() as i32;
 
 		commands.entity(maptile.sprite_entity).insert(SpriteBundle {
@@ -108,23 +98,25 @@ pub fn set_tile(
 		});
 	}
 
-	commands.entity(maptile.tile_entity).insert(Tile {
+	let mut cmds = commands.entity(maptile.tile_entity);
+
+	cmds.insert(Tile {
 		tile_type,
 		coord: tile_coord,
 	});
 
 	if tile_type.is_solid() {
-		commands.entity(maptile.tile_entity).insert(Collider);
+		cmds.insert(Collider);
+	} else {
+		cmds.remove::<Collider>();
 	}
 
 	if tile_type.is_weighted() {
-		commands.entity(maptile.tile_entity).insert(WeightedTile {
+		cmds.insert(WeightedTile {
 			granularity: tile_type.get_granularity(),
 		});
 	} else {
-		commands
-			.entity(maptile.tile_entity)
-			.remove::<WeightedTile>();
+		cmds.remove::<WeightedTile>();
 	}
 
 	let new_maptile = MapTile {
