@@ -1,9 +1,9 @@
 use bevy::{
 	input::mouse::MouseWheel,
 	prelude::{
-		App, BuildChildren, Color, Commands, Component, Entity, EventReader, EventWriter, Input,
-		KeyCode, MouseButton, OrthographicProjection, Plugin, Query, Res, ResMut, Resource,
-		StartupStage, TextBundle, Transform, Vec2, Vec3, With,
+		App, BuildChildren, Color, Commands, Component, CoreStage, Entity, EventReader,
+		EventWriter, Input, KeyCode, MouseButton, OrthographicProjection, Plugin, Query, Res,
+		ResMut, Resource, StartupStage, TextBundle, Transform, Vec2, Vec3, With,
 	},
 	sprite::SpriteBundle,
 	text::{Text, TextAlignment, TextStyle},
@@ -26,16 +26,53 @@ pub struct DevTools;
 impl Plugin for DevTools {
 	fn build(&self, app: &mut App) {
 		app.add_system(place_tiles)
+			.add_event::<ToggleDebugUI>()
+			.add_system_to_stage(CoreStage::First, debug_input)
 			.add_system(camera_zoom)
-			.add_system(update_info)
 			.add_system(tileupdate)
 			.add_system(tickmarkers)
+			.add_system(toggle_debug_ui_event)
+			.add_system_to_stage(CoreStage::PostUpdate, update_info)
 			.add_startup_system_to_stage(StartupStage::PostStartup, setup_devtools);
 	}
 }
 
 #[derive(Component)]
 struct DebugInfo;
+
+#[derive(Resource)]
+struct DebugStates {
+	debug_ui_enabled: bool,
+}
+
+fn debug_input(kb_input: Res<Input<KeyCode>>, mut ev_toggleui: EventWriter<ToggleDebugUI>) {
+	if kb_input.just_pressed(KeyCode::F1) {
+		ev_toggleui.send(ToggleDebugUI());
+	}
+}
+
+fn toggle_debug_ui_event(
+	mut q_info: Query<&mut Text, With<DebugInfo>>,
+	mut ev: EventReader<ToggleDebugUI>,
+	mut states: ResMut<DebugStates>,
+	sprites: Res<Sprites>,
+) {
+	for _ in ev.iter() {
+		states.debug_ui_enabled = !states.debug_ui_enabled;
+		if !states.debug_ui_enabled {
+			if let Ok(mut t) = q_info.get_single_mut() {
+				*t = Text::from_section(
+					"",
+					TextStyle {
+						font: sprites.fonts.get("pressstart2p").unwrap().clone(),
+						font_size: 10.0,
+						color: Color::WHITE,
+					},
+				);
+			}
+		}
+	}
+}
 
 fn place_tiles(
 	q_cursor: Query<&Transform, With<WorldCursor>>,
@@ -114,6 +151,9 @@ fn setup_devtools(mut commands: Commands, q_wrapper: Query<Entity, With<UIWrappe
 		frame_times: vec![],
 		avg_frame_rate: 0.0,
 	});
+	commands.insert_resource(DebugStates {
+		debug_ui_enabled: false,
+	});
 	let info = commands
 		.spawn((
 			TextBundle::from_section(
@@ -154,7 +194,11 @@ fn update_info(
 	map: Res<Map>,
 	time: Res<Time>,
 	mut framerate: ResMut<FrameRate>,
+	state: Res<DebugStates>,
 ) {
+	if !state.debug_ui_enabled {
+		return;
+	}
 	let fps = 1.0 / time.delta_seconds();
 	framerate.frame_times.push(fps);
 
@@ -251,7 +295,7 @@ fn update_info(
 				font_size: 10.0,
 				color: Color::WHITE,
 			},
-		)
+		);
 	};
 }
 
@@ -259,9 +303,9 @@ fn tileupdate(
 	mut commands: Commands,
 	mut ev_update: EventReader<UpdateTileEvent>,
 	sprites: Res<Sprites>,
-	kb_input: Res<Input<KeyCode>>,
+	state: Res<DebugStates>,
 ) {
-	if !kb_input.pressed(KeyCode::E) {
+	if !state.debug_ui_enabled {
 		return;
 	}
 	for ev in ev_update.iter() {
@@ -292,3 +336,5 @@ fn tickmarkers(mut commands: Commands, mut q_markers: Query<(Entity, &mut Update
 
 #[derive(Component)]
 struct UpdateMarker(u8);
+
+struct ToggleDebugUI();
