@@ -17,8 +17,8 @@ use crate::{
 	players::Player,
 	sprites::Sprites,
 	tilephysics::UpdateTileEvent,
-	tiletypes::TileType,
-	MainCamera, UIWrapper, WorldCursor, CAMERA_PROJECTION_SCALE, FLUID_PER_TILE,
+	tiletypes::{Liquid, TileType},
+	MainCamera, UIWrapper, WorldCursor, CAMERA_PROJECTION_SCALE,
 };
 
 pub struct DevTools;
@@ -96,7 +96,7 @@ fn place_tiles(
 		} else if kb_input.pressed(KeyCode::Key5) {
 			ev_createtile.send(CreateTileEvent(
 				world_coord,
-				TileType::Water(FLUID_PER_TILE),
+				TileType::Water(Liquid::default()),
 			));
 		}
 		let size = if m_input.pressed(MouseButton::Left) {
@@ -230,16 +230,40 @@ fn update_info(
 		};
 		let cursor_pos = Coordinate::world_coord_from_vec2(cursor_pos);
 		let player_pos = Coordinate::world_coord_from_vec2(player_pos);
-		let (ct_name, ct_weighted, ct_granularity, ct_liquidlevel) =
+		let (ct_name, ct_weighted, ct_granularity, ct_liquidlevel, ct_momentum, ct_flowdir) =
 			if let Ok(t) = map.get_tile(cursor_pos) {
 				(
 					t.tile_type.get_name(),
 					t.tile_type.is_weighted().to_string(),
 					t.tile_type.get_granularity().to_string(),
-					t.tile_type.get_liquid_level().to_string(),
+					if let Ok(liquid) = t.tile_type.get_liquid() {
+						liquid.level.to_string()
+					} else {
+						"null".to_owned()
+					},
+					if let Ok(liquid) = t.tile_type.get_liquid() {
+						liquid.momentum.to_string()
+					} else {
+						"null".to_owned()
+					},
+					if let Ok(liquid) = t.tile_type.get_liquid() {
+						if let Some(v) = liquid.flowing_right {
+							if v {
+								"right".to_owned()
+							} else {
+								"left".to_owned()
+							}
+						} else {
+							"none".to_owned()
+						}
+					} else {
+						"null".to_owned()
+					},
 				)
 			} else {
 				(
+					"null".to_owned(),
+					"null".to_owned(),
 					"null".to_owned(),
 					"null".to_owned(),
 					"null".to_owned(),
@@ -264,7 +288,9 @@ fn update_info(
 			cursor tile  name: {}\n
 			         weighted: {}\n
 			      granularity: {}\n
-			     liquid level: {}",
+			     liquid level: {}\n
+			         momentum: {}\n
+			          flowdir: {}",
 			framerate.avg_frame_rate,
 			player_pos.as_tile_coord().x_i32(),
 			player_pos.as_tile_coord().y_i32(),
@@ -285,7 +311,9 @@ fn update_info(
 			ct_name,
 			ct_weighted,
 			ct_granularity,
-			ct_liquidlevel
+			ct_liquidlevel,
+			ct_momentum,
+			ct_flowdir
 		);
 
 		*t = Text::from_section(

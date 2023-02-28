@@ -7,7 +7,7 @@ use crate::{
 	grid::{xorshift_from_coord, Coordinate, Map, MapTile},
 	playerphysics::Collider,
 	sprites::Sprites,
-	tilephysics::UpdateTileEvent,
+	tilephysics::{FlowingTile, UpdateTileEvent},
 	tiletypes::TileType,
 };
 
@@ -45,7 +45,10 @@ pub fn set_tile(
 		return Err(());
 	};
 
-	commands.entity(maptile.tile_entity).remove::<FallingTile>();
+	commands
+		.entity(maptile.tile_entity)
+		.remove::<FallingTile>()
+		.remove::<FlowingTile>();
 
 	if !tile_type.is_visible() {
 		commands.entity(maptile.tile_entity).remove::<Tile>();
@@ -90,8 +93,14 @@ pub fn set_tile(
 	} else {
 		let texture_handle = sprites.tiles.get(&tile_type.get_sprite_dir_name()).unwrap();
 		let t = texture_handle
-			.get(tile_type.get_liquid_level() as usize - 1)
-			.expect("Missing liquid tile texture");
+			.get(tile_type.liquid().level as usize - 1)
+			.expect(
+				&format!(
+					"Missing liquid tile texture: {} level {}",
+					tile_type.get_name(),
+					tile_type.liquid().level,
+				)[..],
+			);
 		commands.entity(maptile.sprite_entity).insert(SpriteBundle {
 			texture: t.clone(),
 			..Default::default()

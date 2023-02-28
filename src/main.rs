@@ -16,7 +16,7 @@ use bevy::prelude::*;
 use devtools::DevTools;
 use grid::Grid;
 use inputs::Inputs;
-use playerphysics::{PlayerPhysics, Velocity};
+use playerphysics::{PlayerPhysics, Position, Velocity};
 use players::{Player, PlayerBundle, Players};
 use settings::Settings;
 use sprites::{Sprites, SpritesPlugin};
@@ -58,7 +58,7 @@ struct ScreenCursor;
 struct MainCamera;
 
 #[derive(Resource)]
-struct TickTimer(Timer);
+struct TickTimer(Timer, u64);
 
 fn main() {
 	App::new()
@@ -91,10 +91,10 @@ fn main() {
 			..Default::default()
 		})
 		.insert_resource(ClearColor(Color::rgb(0.30, 0.20, 0.10)))
-		.insert_resource(TickTimer(Timer::from_seconds(
-			1.0 / TICKRATE,
-			TimerMode::Repeating,
-		)))
+		.insert_resource(TickTimer(
+			Timer::from_seconds(1.0 / TICKRATE, TimerMode::Repeating),
+			0,
+		))
 		.run();
 }
 
@@ -116,11 +116,12 @@ fn startup(mut commands: Commands, sprites: Res<Sprites>) {
 
 	commands.spawn((
 		SpriteBundle {
-			transform: Transform::from_translation(Vec3::new(0.0, 0.0, -1.0)),
+			transform: Transform::from_translation(Vec3::new(50.0, -400.0, -1.0)),
 			texture: sprites.player.clone(),
 			..Default::default()
 		},
 		PlayerBundle {
+			position: Position(Vec2::new(50.0, -400.0)),
 			..Default::default()
 		},
 	));
@@ -172,8 +173,9 @@ fn startup(mut commands: Commands, sprites: Res<Sprites>) {
 
 fn tick(time: Res<Time>, mut timer: ResMut<TickTimer>, mut ev: EventWriter<TickEvent>) {
 	if timer.0.tick(time.delta()).just_finished() {
-		ev.send(TickEvent);
+		timer.1 += 1;
+		ev.send(TickEvent(timer.1));
 	}
 }
 
-pub struct TickEvent;
+pub struct TickEvent(u64);

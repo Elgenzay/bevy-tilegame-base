@@ -7,12 +7,7 @@ pub enum TileType {
 	Moss,
 	Dirt,
 	Sand,
-	Water(u8),
-}
-
-pub enum MatterState {
-	Solid,
-	Liquid,
+	Water(Liquid),
 }
 
 impl TileType {
@@ -23,7 +18,7 @@ impl TileType {
 			TileType::Moss,
 			TileType::Dirt,
 			TileType::Sand,
-			TileType::Water(0),
+			TileType::Water(Liquid::default()),
 		]
 	}
 
@@ -74,17 +69,16 @@ impl TileType {
 	pub fn get_matter_state(&self) -> Option<MatterState> {
 		if let TileType::Empty = self {
 			None
+		} else if let Ok(_) = self.get_liquid() {
+			Some(MatterState::Liquid)
 		} else {
-			Some(match self {
-				TileType::Water(_) => MatterState::Liquid,
-				_ => MatterState::Solid,
-			})
+			Some(MatterState::Solid)
 		}
 	}
 
 	pub fn get_granularity(&self) -> u8 {
-		if self.is_liquid() {
-			return (FLUID_PER_TILE - self.get_liquid_level()) + 1;
+		if let Ok(liquid) = self.get_liquid() {
+			return (FLUID_PER_TILE - liquid.level) + 1;
 		}
 		match self {
 			TileType::Gravel => 1,
@@ -93,10 +87,31 @@ impl TileType {
 		}
 	}
 
-	pub fn get_liquid_level(&self) -> u8 {
+	pub fn get_liquid(&self) -> Result<Liquid, ()> {
 		match self {
-			TileType::Water(l) => *l,
-			_ => 0,
+			TileType::Water(l) => Ok(*l),
+			_ => Err(()),
+		}
+	}
+
+	pub fn with_liquid(&self, liquid: Liquid) -> TileType {
+		match self {
+			TileType::Water(_) => TileType::Water(liquid),
+			_ => panic!(
+				"with_liquid() not implemented for passed tiletype: {}",
+				self.get_name()
+			),
+		}
+	}
+
+	pub fn liquid(&self) -> Liquid {
+		if let Ok(l) = self.get_liquid() {
+			l
+		} else {
+			panic!(
+				"liquid() not implemented for passed tiletype: {}",
+				self.get_name()
+			)
 		}
 	}
 
@@ -123,16 +138,6 @@ impl TileType {
 		}
 	}
 
-	pub fn with_liquid_level(&self, level: u8) -> TileType {
-		match self {
-			TileType::Water(_) => TileType::Water(level),
-			_ => panic!(
-				"with_liquid_level() not implemented for passed tiletype: {}",
-				self.get_name()
-			),
-		}
-	}
-
 	pub fn is_obstructed_by(&self, other: TileType) -> bool {
 		if other.is_solid() {
 			return true;
@@ -141,5 +146,27 @@ impl TileType {
 			return true;
 		}
 		false
+	}
+}
+
+pub enum MatterState {
+	Solid,
+	Liquid,
+}
+
+#[derive(Copy, Clone, PartialEq)]
+pub struct Liquid {
+	pub level: u8,
+	pub flowing_right: Option<bool>,
+	pub momentum: u8,
+}
+
+impl Default for Liquid {
+	fn default() -> Self {
+		Liquid {
+			level: FLUID_PER_TILE,
+			flowing_right: None,
+			momentum: 0,
+		}
 	}
 }

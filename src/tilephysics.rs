@@ -2,8 +2,8 @@ use std::{mem::discriminant, panic};
 
 use bevy::{
 	prelude::{
-		App, Commands, CoreStage, Entity, EventReader, EventWriter, Plugin, Query, Res, ResMut,
-		Transform, Vec2, Vec3,
+		App, Commands, Component, CoreStage, Entity, EventReader, EventWriter, Plugin, Query, Res,
+		ResMut, Transform, Vec2, Vec3,
 	},
 	sprite::SpriteBundle,
 };
@@ -13,9 +13,16 @@ use crate::{
 	sprites::Sprites,
 	tileoutline::ConnectedNeighbors,
 	tiles::{set_tile, FallingTile, Tile, WeightedTile},
-	tiletypes::TileType,
+	tiletypes::{Liquid, TileType},
 	TickEvent, FLUID_PER_TILE,
 };
+
+const INITIAL_LIQUID_MOMENTUM: u8 = 200;
+
+#[derive(Component)]
+pub struct FlowingTile {
+	x: i32,
+}
 
 pub struct TilePhysics;
 
@@ -25,7 +32,8 @@ impl Plugin for TilePhysics {
 			.add_event::<UpdateTileEvent>()
 			.add_event::<UpdateOutlineSpriteEvent>()
 			.add_system_to_stage(CoreStage::PostUpdate, update_outline_sprite_event)
-			.add_system_to_stage(CoreStage::PreUpdate, update_tile);
+			.add_system_to_stage(CoreStage::PreUpdate, update_tile)
+			.add_system_to_stage(CoreStage::PreUpdate, flow_liquid_tile);
 	}
 }
 
@@ -170,15 +178,12 @@ fn apply_gravity(
 						);
 					}
 					None => {
-						commands.entity(tuple.0).remove::<FallingTile>();
+						let mut cmds = commands.entity(tuple.0);
+						cmds.remove::<FallingTile>();
 						if maptile.tile_type.is_liquid() {
-							flow_liquid_tile(
-								&mut map,
-								maptile,
-								&mut commands,
-								&mut ev_updatetile,
-								&sprites,
-							);
+							cmds.insert(FlowingTile {
+								x: current_position.x_i32(),
+							});
 						}
 						continue;
 					}
@@ -190,134 +195,221 @@ fn apply_gravity(
 }
 
 fn flow_liquid_tile(
-	map: &mut Map,
-	maptile: MapTile,
-	commands: &mut Commands,
-	ev_updatetile: &mut EventWriter<UpdateTileEvent>,
-	sprites: &Sprites,
+	mut tick: EventReader<TickEvent>,
+	mut map: ResMut<Map>,
+	mut commands: Commands,
+	mut ev_updatetile: EventWriter<UpdateTileEvent>,
+	sprites: Res<Sprites>,
+	q_flowing_tiles: Query<(Entity, &Tile, &FlowingTile)>,
 ) {
-	let below_coord = maptile.tile_coord.moved(&Vec2::NEG_Y);
-	if let Ok(t) = map.get_tile(below_coord) {
-		if discriminant(&t.tile_type) == discriminant(&maptile.tile_type) {
-			let other_level = t.tile_type.get_liquid_level();
-			let other_emptiness = FLUID_PER_TILE - other_level;
-			if other_emptiness != 0 {
-				let this_level = maptile.tile_type.get_liquid_level();
-				let this_remainder = other_level as i8 + this_level as i8 - FLUID_PER_TILE as i8;
-				let (new_level, new_other_level) = if this_remainder < 0 {
-					(0, other_level + this_level)
-				} else {
-					(this_remainder as u8, FLUID_PER_TILE)
-				};
-				let _ = set_tile(
-					commands,
-					maptile.tile_coord,
-					if new_level != 0 {
-						maptile.tile_type.with_liquid_level(new_level)
+	for t in tick.iter() {
+		let mut tuples = vec![];
+		for (tile_entity, tile, flowing_tile) in q_flowing_tiles.iter() {
+			tuples.push((tile_entity, tile, flowing_tile.x));
+		}
+		if t.0 % 2 == 0 {
+			tuples.sort_by(|a, b| a.2.cmp(&b.2));
+		} else {
+			tuples.sort_by(|a, b| b.2.cmp(&a.2));
+		}
+		for tuple in tuples {
+			let tile_entity = tuple.0;
+			let tile = tuple.1;
+			let maptile = if let Ok(t) = map.get_tile(tile.coord) {
+				t
+			} else {
+				continue;
+			};
+			if tile_entity != maptile.tile_entity {
+				commands.entity(tile_entity).remove::<FlowingTile>();
+				continue;
+			}
+			let maptile_liquid = if let Ok(v) = maptile.tile_type.get_liquid() {
+				v
+			} else {
+				commands.entity(tile_entity).remove::<FlowingTile>();
+				continue;
+			};
+
+			let below_coord = maptile.tile_coord.moved(&Vec2::NEG_Y);
+			if let Ok(t) = map.get_tile(below_coord) {
+				if discriminant(&t.tile_type) == discriminant(&maptile.tile_type) {
+					let other_level = t.tile_type.liquid().level;
+					let other_emptiness = FLUID_PER_TILE - other_level;
+					if other_emptiness != 0 {
+						let this_level = maptile_liquid.level;
+						let this_remainder =
+							(other_level as i8 + this_level as i8) - FLUID_PER_TILE as i8;
+						let (new_level, new_other_level) = if this_remainder < 0 {
+							(0, other_level + this_level)
+						} else {
+							(this_remainder as u8, FLUID_PER_TILE)
+						};
+						let _ = set_tile(
+							&mut commands,
+							maptile.tile_coord,
+							if new_level != 0 {
+								maptile.tile_type.with_liquid(Liquid {
+									level: new_level,
+									..Default::default()
+								})
+							} else {
+								TileType::Empty
+							},
+							&sprites,
+							&mut map,
+							&mut ev_updatetile,
+						);
+						let _ = set_tile(
+							&mut commands,
+							below_coord,
+							maptile.tile_type.with_liquid(Liquid {
+								level: new_other_level,
+								..Default::default()
+							}),
+							&sprites,
+							&mut map,
+							&mut ev_updatetile,
+						);
+						continue;
+					}
+				}
+			}
+
+			let get_level = |coord| {
+				return if let Ok(t) = map.get_tile(coord) {
+					if discriminant(&t.tile_type) == discriminant(&maptile.tile_type) {
+						t.tile_type.liquid().level as i8 // existing liquid of same type
+					} else if !t.tile_type.is_solid() {
+						0 as i8 // can flow. interactions with other liquids go here
 					} else {
-						TileType::Empty
+						-1 as i8 // blocked by solid
+					}
+				} else {
+					-1 as i8 // unloaded chunk
+				};
+			};
+
+			let left_coord = maptile.tile_coord.moved(&Vec2::NEG_X);
+			let right_coord = maptile.tile_coord.moved(&Vec2::X);
+			let mut left_level = get_level(left_coord);
+			let mut right_level = get_level(right_coord);
+			let left_level_initial = left_level;
+			let right_level_initial = right_level;
+			let mut this_level = maptile_liquid.level as i8;
+			let this_level_initial = maptile_liquid.level as i8;
+			let mut significant = false;
+			for lvl in [left_level_initial, right_level_initial] {
+				if lvl != -1 {
+					if (this_level - lvl).abs() > 1 {
+						significant = true;
+						break;
+					}
+				}
+			}
+
+			let (mut flow_right, momentum) = if let Some(v) = maptile_liquid.flowing_right {
+				(
+					v,
+					if significant {
+						INITIAL_LIQUID_MOMENTUM
+					} else {
+						maptile_liquid.momentum - 1
 					},
-					sprites,
-					map,
-					ev_updatetile,
-				);
-				let _ = set_tile(
-					commands,
-					below_coord,
-					maptile.tile_type.with_liquid_level(new_other_level),
-					sprites,
-					map,
-					ev_updatetile,
-				);
-				return;
-			}
-		}
-	}
-	if maptile.tile_type.get_liquid_level() == 1 {
-		return;
-	}
-
-	let get_level = |coord| {
-		return if let Ok(t) = map.get_tile(coord) {
-			if discriminant(&t.tile_type) == discriminant(&maptile.tile_type) {
-				t.tile_type.get_liquid_level() as i8 // existing liquid of same type
-			} else if !t.tile_type.is_solid() {
-				0 as i8 // can flow. interactions with other liquids go here
+				)
 			} else {
-				-1 as i8 // blocked by solid
-			}
-		} else {
-			-1 as i8 // unloaded chunk
-		};
-	};
+				(
+					xorshift_from_coord(maptile.tile_coord) % 2 == 0,
+					if significant {
+						INITIAL_LIQUID_MOMENTUM
+					} else {
+						1
+					},
+				)
+			};
 
-	let left_coord = maptile.tile_coord.moved(&Vec2::NEG_X);
-	let right_coord = maptile.tile_coord.moved(&Vec2::X);
-	let mut left_level = get_level(left_coord);
-	let mut right_level = get_level(right_coord);
-	if left_level == -1 && right_level == -1 {
-		return;
-	}
-	let left_level_initial = left_level;
-	let right_level_initial = right_level;
-	let mut this_level = maptile.tile_type.get_liquid_level() as i8;
-	let this_level_initial = maptile.tile_type.get_liquid_level() as i8;
-	let mut flow_left = xorshift_from_coord(maptile.tile_coord) % 2 == 0;
-	loop {
-		flow_left = !flow_left;
-		if this_level == 1 {
-			break;
-		}
-
-		let left_blocked = if left_level == -1 || left_level >= this_level {
-			true
-		} else {
-			false
-		};
-		let right_blocked = if right_level == -1 || right_level >= this_level {
-			true
-		} else {
-			false
-		};
-
-		flow_left = if left_blocked {
-			if right_blocked {
-				break;
+			let stagnant = if momentum <= 1 { true } else { false };
+			if stagnant {
+				commands.entity(tile_entity).remove::<FlowingTile>();
 			} else {
-				false
-			}
-		} else {
-			if right_blocked {
-				true
-			} else {
-				flow_left
-			}
-		};
+				loop {
+					if this_level == 0 {
+						break;
+					}
 
-		if flow_left {
-			left_level += 1;
-		} else {
-			right_level += 1;
-		}
-		this_level -= 1;
-	}
-	let mut set_liquid = |level: i8, level_initial, coord| {
-		if level > 0 {
-			if level != level_initial || level != FLUID_PER_TILE as i8 {
-				let _ = set_tile(
-					commands,
-					coord,
-					maptile.tile_type.with_liquid_level(level as u8),
-					sprites,
-					map,
-					ev_updatetile,
-				);
+					let left_blocked = if left_level == -1 || left_level >= this_level {
+						true
+					} else {
+						false
+					};
+					let right_blocked = if right_level == -1 || right_level >= this_level {
+						true
+					} else {
+						false
+					};
+
+					flow_right = if right_blocked {
+						if left_blocked {
+							break;
+						} else {
+							false
+						}
+					} else {
+						if left_blocked {
+							true
+						} else {
+							flow_right
+						}
+					};
+
+					if flow_right {
+						right_level += 1;
+					} else {
+						left_level += 1;
+					}
+					this_level -= 1;
+					flow_right = !flow_right;
+				}
 			}
+
+			let mut set_liquid = |flow_right: bool, level: i8, level_initial, coord| {
+				if level > 0 {
+					if level != level_initial {
+						let new_tile = maptile.tile_type.with_liquid(Liquid {
+							level: level as u8,
+							flowing_right: if stagnant { None } else { Some(!flow_right) },
+							momentum: if stagnant { 0 } else { momentum },
+						});
+						let _ = set_tile(
+							&mut commands,
+							coord,
+							new_tile,
+							&sprites,
+							&mut map,
+							&mut ev_updatetile,
+						);
+					}
+				} else if level == 0 {
+					let _ = set_tile(
+						&mut commands,
+						coord,
+						TileType::Empty,
+						&sprites,
+						&mut map,
+						&mut ev_updatetile,
+					);
+				}
+			};
+			set_liquid(flow_right, left_level, left_level_initial, left_coord);
+			set_liquid(flow_right, right_level, right_level_initial, right_coord);
+			set_liquid(
+				flow_right,
+				this_level,
+				this_level_initial,
+				maptile.tile_coord,
+			);
 		}
-	};
-	set_liquid(left_level, left_level_initial, left_coord);
-	set_liquid(right_level, right_level_initial, right_coord);
-	set_liquid(this_level, this_level_initial, maptile.tile_coord);
+	}
 }
 
 fn get_fall_coord(
