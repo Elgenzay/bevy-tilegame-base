@@ -84,8 +84,8 @@ impl TileType {
 
 	pub fn get_granularity(&self) -> u8 {
 		if let Ok(liquid) = self.get_liquid() {
-			return (self.get_fluidity() * ((u8::MAX as f32 - liquid.level as f32) / u8::MAX as f32))
-				as u8;
+			return (self.get_fluidity() as f32
+				* ((u8::MAX as f32 - liquid.level as f32) / u8::MAX as f32)) as u8;
 		}
 		match self {
 			TileType::Gravel => 1,
@@ -115,11 +115,11 @@ impl TileType {
 		}
 	}
 
-	pub fn get_fluidity(&self) -> f32 {
+	pub fn get_fluidity(&self) -> u8 {
 		match self {
-			TileType::Water(_) => 20.0,
-			TileType::Magma(_) => 1.0,
-			TileType::Oil(_) => 5.0,
+			TileType::Water(_) => 10,
+			TileType::Magma(_) => 1,
+			TileType::Oil(_) => 5,
 			_ => panic!(
 				"get_fluidity() not implemented for passed tiletype: {}",
 				self.get_name()

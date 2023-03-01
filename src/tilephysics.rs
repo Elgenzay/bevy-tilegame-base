@@ -60,7 +60,10 @@ pub fn update_tile(
 		update_outline_sprite(tile, &mut commands, &sprites, &map);
 		if let Ok(liquid) = tile.tile_type.get_liquid() {
 			let new_sprite_override = if let Ok(above) = map.get_tile(ev.0.moved(&Vec2::Y)) {
-				if above.tile_type.is_liquid() {
+				if above.tile_type.is_liquid()
+					&& std::mem::discriminant(&above.tile_type)
+						!= std::mem::discriminant(&tile.tile_type)
+				{
 					true
 				} else {
 					false
@@ -242,10 +245,7 @@ fn flow_liquid_tile(
 			} else {
 				continue;
 			};
-			if tile_entity != maptile.tile_entity {
-				commands.entity(tile_entity).remove::<FlowingTile>();
-				continue;
-			}
+			let fluidity = maptile.tile_type.get_fluidity();
 			let maptile_liquid = if let Ok(v) = maptile.tile_type.get_liquid() {
 				v
 			} else {
@@ -255,7 +255,7 @@ fn flow_liquid_tile(
 			let rand_bool = xorshift_from_coord(maptile.tile_coord) % 2 == 0;
 			let mut left_blocked = false;
 			let mut right_blocked = false;
-			for i in 0..=maptile.tile_type.get_fluidity() as i32 {
+			for i in 0..=(fluidity * fluidity) as i32 {
 				for m in if rand_bool { [-1, 1] } else { [1, -1] } {
 					if m == -1 && left_blocked {
 						continue;
@@ -388,7 +388,9 @@ fn flow_liquid_tile(
 					}
 				}
 			}
-
+			if fluidity < 10 && !(t.0 % (11 - fluidity as u64) == 0) {
+				continue;
+			}
 			let get_level = |coord| {
 				return if let Ok(t) = map.get_tile(coord) {
 					if discriminant(&t.tile_type) == discriminant(&maptile.tile_type) {
