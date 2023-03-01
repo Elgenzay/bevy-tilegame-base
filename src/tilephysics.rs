@@ -13,7 +13,7 @@ use crate::{
 	sprites::Sprites,
 	tileoutline::ConnectedNeighbors,
 	tiles::{set_tile, FallingTile, Tile, WeightedTile},
-	tiletypes::{Liquid, TileType},
+	tiletypes::{Liquid, LiquidInteraction, TileType},
 	TickEvent,
 };
 
@@ -273,6 +273,38 @@ fn flow_liquid_tile(
 						);
 						continue;
 					}
+				} else if t.tile_type.is_liquid() {
+					match maptile.tile_type.get_liquid_interaction_with(t.tile_type) {
+						LiquidInteraction::Vaporize => {
+							let _ = set_tile(
+								&mut commands,
+								maptile.tile_coord,
+								TileType::Empty,
+								&sprites,
+								&mut map,
+								&mut ev_updatetile,
+							);
+							let _ = set_tile(
+								&mut commands,
+								below_coord,
+								maptile.tile_type,
+								&sprites,
+								&mut map,
+								&mut ev_updatetile,
+							);
+						}
+						LiquidInteraction::Vaporized => {
+							let _ = set_tile(
+								&mut commands,
+								maptile.tile_coord,
+								TileType::Empty,
+								&sprites,
+								&mut map,
+								&mut ev_updatetile,
+							);
+						}
+					}
+					continue;
 				}
 			}
 
@@ -281,12 +313,19 @@ fn flow_liquid_tile(
 					if discriminant(&t.tile_type) == discriminant(&maptile.tile_type) {
 						t.tile_type.liquid().level as i32 // existing liquid of same type
 					} else if !t.tile_type.is_solid() {
-						0 as i32 // can flow. interactions with other liquids go here
+						if t.tile_type.is_liquid() {
+							match maptile.tile_type.get_liquid_interaction_with(t.tile_type) {
+								LiquidInteraction::Vaporize => 0 as i32,
+								LiquidInteraction::Vaporized => -1 as i32,
+							}
+						} else {
+							0 as i32 // can flow
+						}
 					} else {
 						-1 as i32 // blocked by solid
 					}
 				} else {
-					-1 as i32 // unloaded chunk
+					-1 as i32 // blocked by unloaded chunk
 				};
 			};
 

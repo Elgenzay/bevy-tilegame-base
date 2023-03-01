@@ -1,3 +1,5 @@
+use crate::tiles::Tile;
+
 #[derive(Copy, Clone, PartialEq)]
 pub enum TileType {
 	Empty,
@@ -6,6 +8,7 @@ pub enum TileType {
 	Dirt,
 	Sand,
 	Water(Liquid),
+	Magma(Liquid),
 }
 
 impl TileType {
@@ -17,6 +20,7 @@ impl TileType {
 			TileType::Dirt,
 			TileType::Sand,
 			TileType::Water(Liquid::default()),
+			TileType::Magma(Liquid::default()),
 		]
 	}
 
@@ -28,6 +32,7 @@ impl TileType {
 			TileType::Dirt => "Dirt",
 			TileType::Sand => "Sand",
 			TileType::Water(_) => "Water",
+			TileType::Magma(_) => "Magma",
 		}
 		.to_owned()
 	}
@@ -39,6 +44,7 @@ impl TileType {
 			TileType::Dirt => "dirt",
 			TileType::Sand => "sand",
 			TileType::Water(_) => "water",
+			TileType::Magma(_) => "magma",
 			_ => panic!(
 				"get_sprite_dir_name() not implemented for passed tiletype: {}",
 				self.get_name()
@@ -89,6 +95,7 @@ impl TileType {
 	pub fn get_liquid(&self) -> Result<Liquid, ()> {
 		match self {
 			TileType::Water(l) => Ok(*l),
+			TileType::Magma(l) => Ok(*l),
 			_ => Err(()),
 		}
 	}
@@ -96,6 +103,7 @@ impl TileType {
 	pub fn with_liquid(&self, l: Liquid) -> TileType {
 		match self {
 			TileType::Water(_) => TileType::Water(l),
+			TileType::Magma(_) => TileType::Magma(l),
 			_ => panic!(
 				"with_liquid() not implemented for passed tiletype: {}",
 				self.get_name()
@@ -106,11 +114,31 @@ impl TileType {
 	pub fn get_fluidity(&self) -> f32 {
 		match self {
 			TileType::Water(_) => 20.0,
+			TileType::Magma(_) => 1.0,
 			_ => panic!(
 				"get_fluidity() not implemented for passed tiletype: {}",
 				self.get_name()
 			),
 		}
+	}
+
+	pub fn get_liquid_interaction_with(&self, other: TileType) -> LiquidInteraction {
+		match self {
+			TileType::Water(_) => match other {
+				TileType::Magma(_) => return LiquidInteraction::Vaporized,
+				_ => (),
+			},
+			TileType::Magma(_) => match other {
+				TileType::Water(_) => return LiquidInteraction::Vaporize,
+				_ => (),
+			},
+			_ => (),
+		}
+		panic!(
+			"get_liquid_interaction_with() not implemented: {} -> {}",
+			self.get_name(),
+			other.get_name()
+		);
 	}
 
 	pub fn liquid(&self) -> Liquid {
@@ -178,4 +206,9 @@ impl Default for Liquid {
 			momentum: 0,
 		}
 	}
+}
+
+pub enum LiquidInteraction {
+	Vaporize,
+	Vaporized,
 }
