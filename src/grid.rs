@@ -565,10 +565,19 @@ pub fn create_tile_event(
 	sprites: Res<Sprites>,
 ) {
 	for ev in ev_create.iter() {
+		if let Some(prev_maptile) = ev.prev_maptile {
+			if let Ok(t) = map.get_tile(ev.coord) {
+				if t.tile_type != prev_maptile.tile_type {
+					continue;
+				}
+			} else {
+				continue;
+			}
+		}
 		let _ = set_tile(
 			&mut commands,
-			ev.0,
-			ev.1,
+			ev.coord,
+			ev.new_tile_type,
 			&sprites,
 			&mut map,
 			&mut ev_update,
@@ -591,4 +600,18 @@ pub fn xorshift_from_coord(coord: Coordinate) -> i32 {
 }
 
 pub struct DestroyTileEvent(pub Coordinate);
-pub struct CreateTileEvent(pub Coordinate, pub TileType);
+pub struct CreateTileEvent {
+	pub coord: Coordinate,
+	pub new_tile_type: TileType,
+	pub prev_maptile: Option<MapTile>,
+}
+
+impl CreateTileEvent {
+	pub fn new(coord: Coordinate, new_tile_type: TileType, prev_maptile: Option<MapTile>) -> Self {
+		Self {
+			coord,
+			new_tile_type,
+			prev_maptile,
+		}
+	}
+}

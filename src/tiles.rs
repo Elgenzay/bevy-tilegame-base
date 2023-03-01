@@ -92,8 +92,7 @@ pub fn set_tile(
 		});
 	} else {
 		let texture_handle = sprites.tiles.get(&tile_type.get_sprite_dir_name()).unwrap();
-		let tile_above = map.get_tile(maptile.tile_coord.moved(&Vec2::Y));
-		let i = if tile_above.is_ok() && tile_above.unwrap().tile_type.is_liquid() {
+		let i = if tile_type.liquid().sprite_override {
 			texture_handle.len() - 1
 		} else {
 			((texture_handle.len() as f32 - 1.0)

@@ -208,6 +208,7 @@ pub struct Liquid {
 	pub level: u8,
 	pub flowing_right: Option<bool>,
 	pub momentum: u8,
+	pub sprite_override: bool,
 }
 
 impl Default for Liquid {
@@ -216,6 +217,7 @@ impl Default for Liquid {
 			level: u8::MAX,
 			flowing_right: None,
 			momentum: 0,
+			sprite_override: false,
 		}
 	}
 }

@@ -86,27 +86,30 @@ fn place_tiles(
 		let world_coord = Coordinate::world_coord_from_vec2(cursor_pos.translation.truncate());
 
 		if kb_input.pressed(KeyCode::Key1) {
-			ev_createtile.send(CreateTileEvent(world_coord, TileType::Sand));
+			ev_createtile.send(CreateTileEvent::new(world_coord, TileType::Sand, None));
 		} else if kb_input.pressed(KeyCode::Key2) {
-			ev_createtile.send(CreateTileEvent(world_coord, TileType::Dirt));
+			ev_createtile.send(CreateTileEvent::new(world_coord, TileType::Dirt, None));
 		} else if kb_input.pressed(KeyCode::Key3) {
-			ev_createtile.send(CreateTileEvent(world_coord, TileType::Gravel));
+			ev_createtile.send(CreateTileEvent::new(world_coord, TileType::Gravel, None));
 		} else if kb_input.pressed(KeyCode::Key4) {
-			ev_createtile.send(CreateTileEvent(world_coord, TileType::Moss));
+			ev_createtile.send(CreateTileEvent::new(world_coord, TileType::Moss, None));
 		} else if kb_input.pressed(KeyCode::Key5) {
-			ev_createtile.send(CreateTileEvent(
+			ev_createtile.send(CreateTileEvent::new(
 				world_coord,
 				TileType::Water(Liquid::default()),
+				None,
 			));
 		} else if kb_input.pressed(KeyCode::Key6) {
-			ev_createtile.send(CreateTileEvent(
+			ev_createtile.send(CreateTileEvent::new(
 				world_coord,
 				TileType::Magma(Liquid::default()),
+				None,
 			));
 		} else if kb_input.pressed(KeyCode::Key7) {
-			ev_createtile.send(CreateTileEvent(
+			ev_createtile.send(CreateTileEvent::new(
 				world_coord,
 				TileType::Oil(Liquid::default()),
+				None,
 			));
 		}
 		let size = if m_input.pressed(MouseButton::Left) {

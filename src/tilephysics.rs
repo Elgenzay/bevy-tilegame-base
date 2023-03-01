@@ -9,7 +9,7 @@ use bevy::{
 };
 
 use crate::{
-	grid::{xorshift_from_coord, Coordinate, Map, MapTile},
+	grid::{xorshift_from_coord, Coordinate, CreateTileEvent, Map, MapTile},
 	sprites::Sprites,
 	tileoutline::ConnectedNeighbors,
 	tiles::{set_tile, FallingTile, Tile, WeightedTile},
@@ -38,8 +38,9 @@ impl Plugin for TilePhysics {
 }
 
 pub fn update_tile(
-	map: Res<Map>,
+	map: ResMut<Map>,
 	mut ev_update: EventReader<UpdateTileEvent>,
+	mut ev_create_tile: EventWriter<CreateTileEvent>,
 	//mut ev_update_outline: EventWriter<UpdateOutlineSpriteEvent>,
 	mut commands: Commands,
 	sprites: Res<Sprites>,
@@ -57,6 +58,27 @@ pub fn update_tile(
 		}
 		//ev_update_outline.send(UpdateOutlineSpriteEvent(ev.0));
 		update_outline_sprite(tile, &mut commands, &sprites, &map);
+		if let Ok(liquid) = tile.tile_type.get_liquid() {
+			let new_sprite_override = if let Ok(above) = map.get_tile(ev.0.moved(&Vec2::Y)) {
+				if above.tile_type.is_liquid() {
+					true
+				} else {
+					false
+				}
+			} else {
+				false
+			};
+			if new_sprite_override != liquid.sprite_override {
+				ev_create_tile.send(CreateTileEvent::new(
+					tile.tile_coord,
+					tile.tile_type.with_liquid(Liquid {
+						sprite_override: new_sprite_override,
+						..liquid
+					}),
+					Some(tile),
+				));
+			}
+		}
 	}
 }
 
@@ -292,7 +314,7 @@ fn flow_liquid_tile(
 							} else {
 								right_blocked = true;
 							}
-							if t.tile_type.is_liquid() {
+							if let Ok(t_liquid) = t.tile_type.get_liquid() {
 								let mut cont = true;
 								match maptile.tile_type.get_liquid_interaction_with(t.tile_type) {
 									LiquidInteraction::Vaporize => {
@@ -325,14 +347,19 @@ fn flow_liquid_tile(
 									}
 									LiquidInteraction::Float => {
 										cont = false;
-										let _ = set_tile(
-											&mut commands,
-											t.tile_coord,
-											t.tile_type,
-											&sprites,
-											&mut map,
-											&mut ev_updatetile,
-										);
+										if !t_liquid.sprite_override {
+											let _ = set_tile(
+												&mut commands,
+												t.tile_coord,
+												t.tile_type.with_liquid(Liquid {
+													sprite_override: true,
+													..t_liquid
+												}),
+												&sprites,
+												&mut map,
+												&mut ev_updatetile,
+											);
+										}
 									}
 									LiquidInteraction::Sink => {
 										let _ = set_tile(
@@ -474,6 +501,7 @@ fn flow_liquid_tile(
 							level: level as u8,
 							flowing_right: if stagnant { None } else { Some(!flow_right) },
 							momentum: if stagnant { 0 } else { momentum },
+							..maptile_liquid
 						});
 						let _ = set_tile(
 							&mut commands,
