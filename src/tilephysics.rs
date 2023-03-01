@@ -185,7 +185,7 @@ fn apply_gravity(
 			match get_fall_coord(&map, current_position, tuple.2.granularity, maptile) {
 				Ok(opt) => match opt {
 					Some(coord) => {
-						let _ = set_tile(
+						set_tile(
 							&mut commands,
 							current_position,
 							TileType::Empty,
@@ -193,7 +193,7 @@ fn apply_gravity(
 							&mut map,
 							&mut ev_updatetile,
 						);
-						let _ = set_tile(
+						set_tile(
 							&mut commands,
 							coord,
 							tuple.1.tile_type,
@@ -280,7 +280,7 @@ fn flow_liquid_tile(
 								} else {
 									(this_remainder as u8, u8::MAX)
 								};
-								let _ = set_tile(
+								set_tile(
 									&mut commands,
 									maptile.tile_coord,
 									if new_level != 0 {
@@ -295,7 +295,7 @@ fn flow_liquid_tile(
 									&mut map,
 									&mut ev_updatetile,
 								);
-								let _ = set_tile(
+								set_tile(
 									&mut commands,
 									below_coord,
 									maptile.tile_type.with_liquid(Liquid {
@@ -318,7 +318,7 @@ fn flow_liquid_tile(
 								let mut cont = true;
 								match maptile.tile_type.get_liquid_interaction_with(t.tile_type) {
 									LiquidInteraction::Vaporize => {
-										let _ = set_tile(
+										set_tile(
 											&mut commands,
 											maptile.tile_coord,
 											TileType::Empty,
@@ -326,7 +326,7 @@ fn flow_liquid_tile(
 											&mut map,
 											&mut ev_updatetile,
 										);
-										let _ = set_tile(
+										set_tile(
 											&mut commands,
 											below_coord,
 											maptile.tile_type,
@@ -336,7 +336,7 @@ fn flow_liquid_tile(
 										);
 									}
 									LiquidInteraction::Vaporized => {
-										let _ = set_tile(
+										set_tile(
 											&mut commands,
 											maptile.tile_coord,
 											TileType::Empty,
@@ -348,7 +348,7 @@ fn flow_liquid_tile(
 									LiquidInteraction::Float => {
 										cont = false;
 										if !t_liquid.sprite_override {
-											let _ = set_tile(
+											set_tile(
 												&mut commands,
 												t.tile_coord,
 												t.tile_type.with_liquid(Liquid {
@@ -362,7 +362,7 @@ fn flow_liquid_tile(
 										}
 									}
 									LiquidInteraction::Sink => {
-										let _ = set_tile(
+										set_tile(
 											&mut commands,
 											maptile.tile_coord,
 											t.tile_type,
@@ -370,7 +370,7 @@ fn flow_liquid_tile(
 											&mut map,
 											&mut ev_updatetile,
 										);
-										let _ = set_tile(
+										set_tile(
 											&mut commands,
 											below_coord,
 											maptile.tile_type,
@@ -505,7 +505,7 @@ fn flow_liquid_tile(
 							momentum: if stagnant { 0 } else { momentum },
 							..maptile_liquid
 						});
-						let _ = set_tile(
+						set_tile(
 							&mut commands,
 							coord,
 							new_tile,
@@ -515,7 +515,7 @@ fn flow_liquid_tile(
 						);
 					}
 				} else if level == 0 {
-					let _ = set_tile(
+					set_tile(
 						&mut commands,
 						coord,
 						TileType::Empty,

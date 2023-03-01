@@ -34,6 +34,17 @@ pub fn set_tile(
 	sprites: &Sprites,
 	map: &mut Map,
 	update_tile_event: &mut EventWriter<UpdateTileEvent>,
+) {
+	let _ = set_tile_result(commands, coord, tile_type, sprites, map, update_tile_event);
+}
+
+pub fn set_tile_result(
+	commands: &mut Commands,
+	coord: Coordinate,
+	tile_type: TileType,
+	sprites: &Sprites,
+	map: &mut Map,
+	update_tile_event: &mut EventWriter<UpdateTileEvent>,
 ) -> Result<MapTile, ()> {
 	let tile_coord = coord.as_tile_coord();
 	let chunklocal_coord = coord.as_chunklocal_coord();

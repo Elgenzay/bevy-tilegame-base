@@ -3,7 +3,7 @@ use crate::{
 	players::Player,
 	sprites::Sprites,
 	tilephysics::UpdateTileEvent,
-	tiles::set_tile,
+	tiles::{set_tile, set_tile_result},
 	tiletypes::TileType,
 	worldgen::tiletype_at,
 	CHUNK_SIZE, RENDER_DISTANCE, TILE_SIZE, UNRENDER_DISTANCE,
@@ -391,7 +391,7 @@ pub fn spawn_chunk(
 			let tile_x = (chunk_pos.x * CHUNK_SIZE.0 as i32) + x as i32;
 			let tile_y = (chunk_pos.y * CHUNK_SIZE.1 as i32) + y as i32;
 			let tile_type = tiletype_at(tile_x, tile_y);
-			if let Err(_) = set_tile(
+			if let Err(_) = set_tile_result(
 				commands,
 				Coordinate::Tile {
 					x: tile_x,
@@ -502,7 +502,7 @@ fn destroy_tile_event(
 	sprites: Res<Sprites>,
 ) {
 	for ev in ev_destroy.iter() {
-		let _ = set_tile(
+		set_tile(
 			&mut commands,
 			ev.0,
 			TileType::Empty,
@@ -574,7 +574,7 @@ pub fn create_tile_event(
 				continue;
 			}
 		}
-		let _ = set_tile(
+		set_tile(
 			&mut commands,
 			ev.coord,
 			ev.new_tile_type,
