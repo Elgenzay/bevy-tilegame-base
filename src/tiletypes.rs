@@ -1,5 +1,3 @@
-use crate::FLUID_PER_TILE;
-
 #[derive(Copy, Clone, PartialEq)]
 pub enum TileType {
 	Empty,
@@ -78,7 +76,8 @@ impl TileType {
 
 	pub fn get_granularity(&self) -> u8 {
 		if let Ok(liquid) = self.get_liquid() {
-			return (FLUID_PER_TILE - liquid.level) + 1;
+			return (self.get_fluidity() * ((u8::MAX as f32 - liquid.level as f32) / u8::MAX as f32))
+				as u8;
 		}
 		match self {
 			TileType::Gravel => 1,
@@ -94,11 +93,21 @@ impl TileType {
 		}
 	}
 
-	pub fn with_liquid(&self, liquid: Liquid) -> TileType {
+	pub fn with_liquid(&self, l: Liquid) -> TileType {
 		match self {
-			TileType::Water(_) => TileType::Water(liquid),
+			TileType::Water(_) => TileType::Water(l),
 			_ => panic!(
 				"with_liquid() not implemented for passed tiletype: {}",
+				self.get_name()
+			),
+		}
+	}
+
+	pub fn get_fluidity(&self) -> f32 {
+		match self {
+			TileType::Water(_) => 20.0,
+			_ => panic!(
+				"get_fluidity() not implemented for passed tiletype: {}",
 				self.get_name()
 			),
 		}
@@ -164,7 +173,7 @@ pub struct Liquid {
 impl Default for Liquid {
 	fn default() -> Self {
 		Liquid {
-			level: FLUID_PER_TILE,
+			level: u8::MAX,
 			flowing_right: None,
 			momentum: 0,
 		}

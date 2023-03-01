@@ -43,8 +43,6 @@ const GRAVITY_SCALE: f32 = 500.0;
 const TERMINAL_VELOCITY: f32 = 500.0;
 const TICKRATE: f32 = 20.0;
 
-const FLUID_PER_TILE: u8 = 8;
-
 #[derive(Component)]
 struct WorldCursor;
 

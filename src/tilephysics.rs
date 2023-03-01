@@ -14,7 +14,7 @@ use crate::{
 	tileoutline::ConnectedNeighbors,
 	tiles::{set_tile, FallingTile, Tile, WeightedTile},
 	tiletypes::{Liquid, TileType},
-	TickEvent, FLUID_PER_TILE,
+	TickEvent,
 };
 
 const INITIAL_LIQUID_MOMENTUM: u8 = 200;
@@ -235,15 +235,15 @@ fn flow_liquid_tile(
 			if let Ok(t) = map.get_tile(below_coord) {
 				if discriminant(&t.tile_type) == discriminant(&maptile.tile_type) {
 					let other_level = t.tile_type.liquid().level;
-					let other_emptiness = FLUID_PER_TILE - other_level;
+					let other_emptiness = u8::MAX - other_level;
 					if other_emptiness != 0 {
 						let this_level = maptile_liquid.level;
 						let this_remainder =
-							(other_level as i8 + this_level as i8) - FLUID_PER_TILE as i8;
+							(other_level as i32 + this_level as i32) - u8::MAX as i32;
 						let (new_level, new_other_level) = if this_remainder < 0 {
 							(0, other_level + this_level)
 						} else {
-							(this_remainder as u8, FLUID_PER_TILE)
+							(this_remainder as u8, u8::MAX)
 						};
 						let _ = set_tile(
 							&mut commands,
@@ -279,14 +279,14 @@ fn flow_liquid_tile(
 			let get_level = |coord| {
 				return if let Ok(t) = map.get_tile(coord) {
 					if discriminant(&t.tile_type) == discriminant(&maptile.tile_type) {
-						t.tile_type.liquid().level as i8 // existing liquid of same type
+						t.tile_type.liquid().level as i32 // existing liquid of same type
 					} else if !t.tile_type.is_solid() {
-						0 as i8 // can flow. interactions with other liquids go here
+						0 as i32 // can flow. interactions with other liquids go here
 					} else {
-						-1 as i8 // blocked by solid
+						-1 as i32 // blocked by solid
 					}
 				} else {
-					-1 as i8 // unloaded chunk
+					-1 as i32 // unloaded chunk
 				};
 			};
 
@@ -296,8 +296,8 @@ fn flow_liquid_tile(
 			let mut right_level = get_level(right_coord);
 			let left_level_initial = left_level;
 			let right_level_initial = right_level;
-			let mut this_level = maptile_liquid.level as i8;
-			let this_level_initial = maptile_liquid.level as i8;
+			let mut this_level = maptile_liquid.level as i32;
+			let this_level_initial = maptile_liquid.level as i32;
 			let mut significant = false;
 			for lvl in [left_level_initial, right_level_initial] {
 				if lvl != -1 {
@@ -372,7 +372,7 @@ fn flow_liquid_tile(
 				}
 			}
 
-			let mut set_liquid = |flow_right: bool, level: i8, level_initial, coord| {
+			let mut set_liquid = |flow_right: bool, level: i32, level_initial, coord| {
 				if level > 0 {
 					if level != level_initial {
 						let new_tile = maptile.tile_type.with_liquid(Liquid {

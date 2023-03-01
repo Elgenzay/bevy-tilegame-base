@@ -92,15 +92,15 @@ pub fn set_tile(
 		});
 	} else {
 		let texture_handle = sprites.tiles.get(&tile_type.get_sprite_dir_name()).unwrap();
-		let t = texture_handle
-			.get(tile_type.liquid().level as usize - 1)
-			.expect(
-				&format!(
-					"Missing liquid tile texture: {} level {}",
-					tile_type.get_name(),
-					tile_type.liquid().level,
-				)[..],
-			);
+		let i = ((texture_handle.len() as f32 - 1.0)
+			* (tile_type.liquid().level as f32 / u8::MAX as f32)) as usize;
+		let t = texture_handle.get(i).expect(
+			&format!(
+				"Missing liquid tile texture: {} index {}",
+				tile_type.get_name(),
+				i,
+			)[..],
+		);
 		commands.entity(maptile.sprite_entity).insert(SpriteBundle {
 			texture: t.clone(),
 			..Default::default()
