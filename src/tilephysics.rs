@@ -212,7 +212,7 @@ fn flow_liquid_tile(
 		} else {
 			tuples.sort_by(|a, b| b.2.cmp(&a.2));
 		}
-		for tuple in tuples {
+		'outer: for tuple in tuples {
 			let tile_entity = tuple.0;
 			let tile = tuple.1;
 			let maptile = if let Ok(t) = map.get_tile(tile.coord) {
@@ -230,81 +230,135 @@ fn flow_liquid_tile(
 				commands.entity(tile_entity).remove::<FlowingTile>();
 				continue;
 			};
-
-			let below_coord = maptile.tile_coord.moved(&Vec2::NEG_Y);
-			if let Ok(t) = map.get_tile(below_coord) {
-				if discriminant(&t.tile_type) == discriminant(&maptile.tile_type) {
-					let other_level = t.tile_type.liquid().level;
-					let other_emptiness = u8::MAX - other_level;
-					if other_emptiness != 0 {
-						let this_level = maptile_liquid.level;
-						let this_remainder =
-							(other_level as i32 + this_level as i32) - u8::MAX as i32;
-						let (new_level, new_other_level) = if this_remainder < 0 {
-							(0, other_level + this_level)
-						} else {
-							(this_remainder as u8, u8::MAX)
-						};
-						let _ = set_tile(
-							&mut commands,
-							maptile.tile_coord,
-							if new_level != 0 {
-								maptile.tile_type.with_liquid(Liquid {
-									level: new_level,
-									..Default::default()
-								})
-							} else {
-								TileType::Empty
-							},
-							&sprites,
-							&mut map,
-							&mut ev_updatetile,
-						);
-						let _ = set_tile(
-							&mut commands,
-							below_coord,
-							maptile.tile_type.with_liquid(Liquid {
-								level: new_other_level,
-								..Default::default()
-							}),
-							&sprites,
-							&mut map,
-							&mut ev_updatetile,
-						);
+			let rand_bool = xorshift_from_coord(maptile.tile_coord) % 2 == 0;
+			let mut left_blocked = false;
+			let mut right_blocked = false;
+			for i in 0..=maptile.tile_type.get_fluidity() as i32 {
+				for m in if rand_bool { [-1, 1] } else { [1, -1] } {
+					if m == -1 && left_blocked {
+						continue;
+					} else if m == 1 && right_blocked {
 						continue;
 					}
-				} else if t.tile_type.is_liquid() {
-					match maptile.tile_type.get_liquid_interaction_with(t.tile_type) {
-						LiquidInteraction::Vaporize => {
-							let _ = set_tile(
-								&mut commands,
-								maptile.tile_coord,
-								TileType::Empty,
-								&sprites,
-								&mut map,
-								&mut ev_updatetile,
-							);
-							let _ = set_tile(
-								&mut commands,
-								below_coord,
-								maptile.tile_type,
-								&sprites,
-								&mut map,
-								&mut ev_updatetile,
-							);
-						}
-						LiquidInteraction::Vaporized => {
-							let _ = set_tile(
-								&mut commands,
-								maptile.tile_coord,
-								TileType::Empty,
-								&sprites,
-								&mut map,
-								&mut ev_updatetile,
-							);
+					let x = i * m;
+					if i == 0 && m == -1 {
+						continue;
+					}
+					let below_coord = maptile.tile_coord.moved(&Vec2::new(x as f32, -1.0));
+					if let Ok(t) = map.get_tile(below_coord) {
+						if discriminant(&t.tile_type) == discriminant(&maptile.tile_type) {
+							let other_level = t.tile_type.liquid().level;
+							let other_emptiness = u8::MAX - other_level;
+							if other_emptiness != 0 {
+								let this_level = maptile_liquid.level;
+								let this_remainder =
+									(other_level as i32 + this_level as i32) - u8::MAX as i32;
+								let (new_level, new_other_level) = if this_remainder < 0 {
+									(0, other_level + this_level)
+								} else {
+									(this_remainder as u8, u8::MAX)
+								};
+								let _ = set_tile(
+									&mut commands,
+									maptile.tile_coord,
+									if new_level != 0 {
+										maptile.tile_type.with_liquid(Liquid {
+											level: new_level,
+											..Default::default()
+										})
+									} else {
+										TileType::Empty
+									},
+									&sprites,
+									&mut map,
+									&mut ev_updatetile,
+								);
+								let _ = set_tile(
+									&mut commands,
+									below_coord,
+									maptile.tile_type.with_liquid(Liquid {
+										level: new_other_level,
+										..Default::default()
+									}),
+									&sprites,
+									&mut map,
+									&mut ev_updatetile,
+								);
+								continue 'outer;
+							}
+						} else {
+							if m == -1 {
+								left_blocked = true;
+							} else {
+								right_blocked = true;
+							}
+							if t.tile_type.is_liquid() {
+								let mut cont = true;
+								match maptile.tile_type.get_liquid_interaction_with(t.tile_type) {
+									LiquidInteraction::Vaporize => {
+										let _ = set_tile(
+											&mut commands,
+											maptile.tile_coord,
+											TileType::Empty,
+											&sprites,
+											&mut map,
+											&mut ev_updatetile,
+										);
+										let _ = set_tile(
+											&mut commands,
+											below_coord,
+											maptile.tile_type,
+											&sprites,
+											&mut map,
+											&mut ev_updatetile,
+										);
+									}
+									LiquidInteraction::Vaporized => {
+										let _ = set_tile(
+											&mut commands,
+											maptile.tile_coord,
+											TileType::Empty,
+											&sprites,
+											&mut map,
+											&mut ev_updatetile,
+										);
+									}
+									LiquidInteraction::Float => {
+										cont = false;
+										let _ = set_tile(
+											&mut commands,
+											t.tile_coord,
+											t.tile_type,
+											&sprites,
+											&mut map,
+											&mut ev_updatetile,
+										);
+									}
+									LiquidInteraction::Sink => {
+										let _ = set_tile(
+											&mut commands,
+											maptile.tile_coord,
+											t.tile_type,
+											&sprites,
+											&mut map,
+											&mut ev_updatetile,
+										);
+										let _ = set_tile(
+											&mut commands,
+											below_coord,
+											maptile.tile_type,
+											&sprites,
+											&mut map,
+											&mut ev_updatetile,
+										);
+									}
+								}
+								if cont {
+									continue 'outer;
+								}
+							}
 						}
 					}
-					continue;
 				}
 			}
 
@@ -317,6 +371,8 @@ fn flow_liquid_tile(
 							match maptile.tile_type.get_liquid_interaction_with(t.tile_type) {
 								LiquidInteraction::Vaporize => 0 as i32,
 								LiquidInteraction::Vaporized => -1 as i32,
+								LiquidInteraction::Float => -1 as i32,
+								LiquidInteraction::Sink => -1 as i32,
 							}
 						} else {
 							0 as i32 // can flow
@@ -358,7 +414,7 @@ fn flow_liquid_tile(
 				)
 			} else {
 				(
-					xorshift_from_coord(maptile.tile_coord) % 2 == 0,
+					rand_bool,
 					if significant {
 						INITIAL_LIQUID_MOMENTUM
 					} else {

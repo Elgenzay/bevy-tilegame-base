@@ -103,6 +103,11 @@ fn place_tiles(
 				world_coord,
 				TileType::Magma(Liquid::default()),
 			));
+		} else if kb_input.pressed(KeyCode::Key7) {
+			ev_createtile.send(CreateTileEvent(
+				world_coord,
+				TileType::Oil(Liquid::default()),
+			));
 		}
 		let size = if m_input.pressed(MouseButton::Left) {
 			1

@@ -92,8 +92,13 @@ pub fn set_tile(
 		});
 	} else {
 		let texture_handle = sprites.tiles.get(&tile_type.get_sprite_dir_name()).unwrap();
-		let i = ((texture_handle.len() as f32 - 1.0)
-			* (tile_type.liquid().level as f32 / u8::MAX as f32)) as usize;
+		let tile_above = map.get_tile(maptile.tile_coord.moved(&Vec2::Y));
+		let i = if tile_above.is_ok() && tile_above.unwrap().tile_type.is_liquid() {
+			texture_handle.len() - 1
+		} else {
+			((texture_handle.len() as f32 - 1.0)
+				* (tile_type.liquid().level as f32 / u8::MAX as f32)) as usize
+		};
 		let t = texture_handle.get(i).expect(
 			&format!(
 				"Missing liquid tile texture: {} index {}",

@@ -1,5 +1,3 @@
-use crate::tiles::Tile;
-
 #[derive(Copy, Clone, PartialEq)]
 pub enum TileType {
 	Empty,
@@ -9,6 +7,7 @@ pub enum TileType {
 	Sand,
 	Water(Liquid),
 	Magma(Liquid),
+	Oil(Liquid),
 }
 
 impl TileType {
@@ -21,6 +20,7 @@ impl TileType {
 			TileType::Sand,
 			TileType::Water(Liquid::default()),
 			TileType::Magma(Liquid::default()),
+			TileType::Oil(Liquid::default()),
 		]
 	}
 
@@ -33,6 +33,7 @@ impl TileType {
 			TileType::Sand => "Sand",
 			TileType::Water(_) => "Water",
 			TileType::Magma(_) => "Magma",
+			TileType::Oil(_) => "Oil",
 		}
 		.to_owned()
 	}
@@ -45,6 +46,7 @@ impl TileType {
 			TileType::Sand => "sand",
 			TileType::Water(_) => "water",
 			TileType::Magma(_) => "magma",
+			TileType::Oil(_) => "oil",
 			_ => panic!(
 				"get_sprite_dir_name() not implemented for passed tiletype: {}",
 				self.get_name()
@@ -96,6 +98,7 @@ impl TileType {
 		match self {
 			TileType::Water(l) => Ok(*l),
 			TileType::Magma(l) => Ok(*l),
+			TileType::Oil(l) => Ok(*l),
 			_ => Err(()),
 		}
 	}
@@ -104,6 +107,7 @@ impl TileType {
 		match self {
 			TileType::Water(_) => TileType::Water(l),
 			TileType::Magma(_) => TileType::Magma(l),
+			TileType::Oil(_) => TileType::Oil(l),
 			_ => panic!(
 				"with_liquid() not implemented for passed tiletype: {}",
 				self.get_name()
@@ -115,6 +119,7 @@ impl TileType {
 		match self {
 			TileType::Water(_) => 20.0,
 			TileType::Magma(_) => 1.0,
+			TileType::Oil(_) => 5.0,
 			_ => panic!(
 				"get_fluidity() not implemented for passed tiletype: {}",
 				self.get_name()
@@ -126,10 +131,17 @@ impl TileType {
 		match self {
 			TileType::Water(_) => match other {
 				TileType::Magma(_) => return LiquidInteraction::Vaporized,
+				TileType::Oil(_) => return LiquidInteraction::Sink,
 				_ => (),
 			},
 			TileType::Magma(_) => match other {
 				TileType::Water(_) => return LiquidInteraction::Vaporize,
+				TileType::Oil(_) => return LiquidInteraction::Vaporize,
+				_ => (),
+			},
+			TileType::Oil(_) => match other {
+				TileType::Water(_) => return LiquidInteraction::Float,
+				TileType::Magma(_) => return LiquidInteraction::Vaporized,
 				_ => (),
 			},
 			_ => (),
@@ -211,4 +223,6 @@ impl Default for Liquid {
 pub enum LiquidInteraction {
 	Vaporize,
 	Vaporized,
+	Float,
+	Sink,
 }
