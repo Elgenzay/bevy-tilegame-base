@@ -5,6 +5,7 @@ use bevy::{
 
 use crate::{
 	grid::{xorshift_from_coord, Coordinate, Map, MapTile},
+	light::{AddLightSourceEvent, LightingUpdateEvent},
 	playerphysics::Collider,
 	sprites::Sprites,
 	tilephysics::{FlowingTile, UpdateTileEvent},
@@ -34,8 +35,19 @@ pub fn set_tile(
 	sprites: &Sprites,
 	map: &mut Map,
 	update_tile_event: &mut EventWriter<UpdateTileEvent>,
+	event_add_lightsource: &mut EventWriter<AddLightSourceEvent>,
+	event_update_lighting: &mut EventWriter<LightingUpdateEvent>,
 ) {
-	let _ = set_tile_result(commands, coord, tile_type, sprites, map, update_tile_event);
+	let _ = set_tile_result(
+		commands,
+		coord,
+		tile_type,
+		sprites,
+		map,
+		update_tile_event,
+		event_add_lightsource,
+		event_update_lighting,
+	);
 }
 
 pub fn set_tile_result(
@@ -45,6 +57,8 @@ pub fn set_tile_result(
 	sprites: &Sprites,
 	map: &mut Map,
 	update_tile_event: &mut EventWriter<UpdateTileEvent>,
+	event_add_lightsource: &mut EventWriter<AddLightSourceEvent>,
+	event_update_lighting: &mut EventWriter<LightingUpdateEvent>,
 ) -> Result<MapTile, ()> {
 	let tile_coord = coord.as_tile_coord();
 	let chunklocal_coord = coord.as_chunklocal_coord();
@@ -157,13 +171,23 @@ pub fn set_tile_result(
 		}
 	}
 
-	map.get_mut(&(chunk_coord.x_i32(), chunk_coord.y_i32()))
+	let maptile_mut = map
+		.get_mut(&(chunk_coord.x_i32(), chunk_coord.y_i32()))
 		.unwrap()
 		.tiles
-		.insert(
-			(chunklocal_coord.x_u8(), chunklocal_coord.y_u8()),
-			new_maptile,
-		);
+		.get_mut(&(chunklocal_coord.x_u8(), chunklocal_coord.y_u8()));
+	if let Some(v) = maptile_mut {
+		if v.tile_type.is_emitter() {
+			// todo remove lightsource
+		}
+		if new_maptile.tile_type.is_emitter() {
+			event_add_lightsource.send(AddLightSourceEvent(new_maptile));
+		}
+		if v.tile_type.is_opaque() != new_maptile.tile_type.is_opaque() {
+			event_update_lighting.send(LightingUpdateEvent(v.tile_coord));
+		}
+		*v = new_maptile;
+	}
 
 	Ok(new_maptile)
 }

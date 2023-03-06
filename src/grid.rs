@@ -1,4 +1,5 @@
 use crate::{
+	light::{AddLightSourceEvent, LightingUpdateEvent},
 	playerphysics::{Collider, Position},
 	players::Player,
 	sprites::Sprites,
@@ -17,6 +18,7 @@ use bevy::{
 	transform::TransformBundle,
 	utils::hashbrown::HashMap,
 };
+use bresenham::Bresenham;
 
 pub struct Grid;
 
@@ -94,6 +96,19 @@ impl Map {
 		}
 		Err(()) // unloaded chunk
 	}
+
+	pub fn set_tile_light_level(&mut self, coord: Coordinate, light_level: u8) {
+		let chunk_coord = coord.as_chunk_coord();
+		let chunklocal_coord = coord.as_chunklocal_coord();
+		if let Some(chunk) = self.0.get_mut(&(chunk_coord.x_i32(), chunk_coord.y_i32())) {
+			if let Some(tile) = chunk
+				.tiles
+				.get_mut(&(chunklocal_coord.x_u8(), chunklocal_coord.y_u8()))
+			{
+				tile.light_level = light_level
+			}
+		}
+	}
 }
 
 pub struct MapChunk {
@@ -106,6 +121,8 @@ pub struct MapTile {
 	pub tile_entity: Entity,
 	pub outline_entity: Entity,
 	pub sprite_entity: Entity,
+	pub light_entity: Entity,
+	pub light_level: u8,
 	pub outline_id: usize,
 	pub tile_type: TileType,
 	pub tile_coord: Coordinate,
@@ -135,6 +152,24 @@ impl Coordinate {
 			Self::Tile { x: _, y } => *y,
 			Self::Chunk { x: _, y } => *y,
 			Self::ChunkLocal { x: _, y } => *y as i32,
+		}
+	}
+
+	pub fn x_isize(&self) -> isize {
+		match self {
+			Self::World { x, y: _ } => *x as isize,
+			Self::ChunkLocal { x, y: _ } => *x as isize,
+			Self::Tile { x, y: _ } => *x as isize,
+			Self::Chunk { x, y: _ } => *x as isize,
+		}
+	}
+
+	pub fn y_isize(&self) -> isize {
+		match self {
+			Self::World { x: _, y } => *y as isize,
+			Self::Tile { x: _, y } => *y as isize,
+			Self::Chunk { x: _, y } => *y as isize,
+			Self::ChunkLocal { x: _, y } => *y as isize,
 		}
 	}
 
@@ -267,6 +302,20 @@ impl Coordinate {
 			Coordinate::ChunkLocal { x: _, y: _ } => panic!("Tried to move ChunkLocal coordinate"),
 		}
 	}
+
+	pub fn raycast_to(&self, other_tile_coord: Coordinate) -> Vec<Coordinate> {
+		let mut maptiles = vec![];
+		for (x, y) in Bresenham::new(
+			(self.x_isize(), self.y_isize()),
+			(other_tile_coord.x_isize(), other_tile_coord.y_isize()),
+		) {
+			maptiles.push(Coordinate::Tile {
+				x: x as i32,
+				y: y as i32,
+			});
+		}
+		maptiles
+	}
 }
 
 impl PartialEq for Coordinate {
@@ -285,6 +334,8 @@ pub fn spawn_chunk(
 	map: &mut Map,
 	sprites: &Sprites,
 	ev_update: &mut EventWriter<UpdateTileEvent>,
+	ev_addlightsource: &mut EventWriter<AddLightSourceEvent>,
+	ev_updatelighting: &mut EventWriter<LightingUpdateEvent>,
 ) -> Entity {
 	let tilesize_x_f32 = TILE_SIZE.x as f32;
 	let tilesize_y_f32 = TILE_SIZE.y as f32;
@@ -360,8 +411,10 @@ pub fn spawn_chunk(
 			let outline = commands.spawn_empty().id();
 
 			let sprite = commands.spawn_empty().id();
+			let light = commands.spawn_empty().id();
 			commands.entity(tile).add_child(outline);
 			commands.entity(tile).add_child(sprite);
+			commands.entity(tile).add_child(light);
 			commands.entity(chunk_entity).add_child(tile);
 			tiles.insert(
 				(x, y),
@@ -369,6 +422,8 @@ pub fn spawn_chunk(
 					tile_entity: tile,
 					sprite_entity: sprite,
 					outline_entity: outline,
+					light_entity: light,
+					light_level: 0,
 					outline_id: 40,
 					tile_type: TileType::Empty,
 					tile_coord: Coordinate::Tile {
@@ -401,6 +456,8 @@ pub fn spawn_chunk(
 				&sprites,
 				map,
 				ev_update,
+				ev_addlightsource,
+				ev_updatelighting,
 			) {
 				println!("Chunk load error");
 			};
@@ -497,6 +554,8 @@ fn regions_overlap(region_1: &Region, region_2: &Region) -> bool {
 fn destroy_tile_event(
 	mut ev_destroy: EventReader<DestroyTileEvent>,
 	mut ev_update: EventWriter<UpdateTileEvent>,
+	mut ev_addlightsource: EventWriter<AddLightSourceEvent>,
+	mut ev_updatelighting: EventWriter<LightingUpdateEvent>,
 	mut map: ResMut<Map>,
 	mut commands: Commands,
 	sprites: Res<Sprites>,
@@ -509,6 +568,8 @@ fn destroy_tile_event(
 			&sprites,
 			&mut map,
 			&mut ev_update,
+			&mut ev_addlightsource,
+			&mut ev_updatelighting,
 		);
 	}
 }
@@ -520,6 +581,8 @@ pub fn render_chunks(
 	q_chunks: Query<&Chunk>,
 	sprites: Res<Sprites>,
 	mut ev_update: EventWriter<UpdateTileEvent>,
+	mut ev_addlightsource: EventWriter<AddLightSourceEvent>,
+	mut ev_updatelighting: EventWriter<LightingUpdateEvent>,
 ) {
 	for (player, position) in q_player.iter() {
 		if let Player::Local = player {
@@ -550,6 +613,8 @@ pub fn render_chunks(
 						&mut map,
 						&sprites,
 						&mut ev_update,
+						&mut ev_addlightsource,
+						&mut ev_updatelighting,
 					);
 				}
 			}
@@ -562,6 +627,8 @@ pub fn create_tile_event(
 	mut commands: Commands,
 	mut ev_create: EventReader<CreateTileEvent>,
 	mut ev_update: EventWriter<UpdateTileEvent>,
+	mut ev_addlightsource: EventWriter<AddLightSourceEvent>,
+	mut ev_updatelighting: EventWriter<LightingUpdateEvent>,
 	sprites: Res<Sprites>,
 ) {
 	for ev in ev_create.iter() {
@@ -581,6 +648,8 @@ pub fn create_tile_event(
 			&sprites,
 			&mut map,
 			&mut ev_update,
+			&mut ev_addlightsource,
+			&mut ev_updatelighting,
 		);
 	}
 }

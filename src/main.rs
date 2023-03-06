@@ -1,6 +1,7 @@
 mod devtools;
 mod grid;
 mod inputs;
+mod light;
 mod playerphysics;
 mod players;
 mod settings;
@@ -16,6 +17,7 @@ use bevy::prelude::*;
 use devtools::DevTools;
 use grid::Grid;
 use inputs::Inputs;
+use light::Light;
 use playerphysics::{PlayerPhysics, Position, Velocity};
 use players::{Player, PlayerBundle, Players};
 use settings::Settings;
@@ -82,6 +84,7 @@ fn main() {
 		.add_plugin(TilePhysics)
 		.add_plugin(Players)
 		.add_plugin(SpritesPlugin)
+		.add_plugin(Light)
 		.add_plugin(DevTools)
 		.add_startup_system(startup)
 		.add_system(tick)
@@ -114,7 +117,7 @@ fn startup(mut commands: Commands, sprites: Res<Sprites>) {
 
 	commands.spawn((
 		SpriteBundle {
-			transform: Transform::from_translation(Vec3::new(50.0, -400.0, -1.0)),
+			transform: Transform::from_translation(Vec3::new(50.0, -400.0, 10.0)),
 			texture: sprites.player.clone(),
 			..Default::default()
 		},

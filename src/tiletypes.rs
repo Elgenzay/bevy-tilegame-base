@@ -1,3 +1,5 @@
+use crate::light::Emitter;
+
 #[derive(Copy, Clone, PartialEq)]
 pub enum TileType {
 	Empty,
@@ -8,6 +10,7 @@ pub enum TileType {
 	Water(Liquid),
 	Magma(Liquid),
 	Oil(Liquid),
+	Lantern(Emitter),
 }
 
 impl TileType {
@@ -21,6 +24,7 @@ impl TileType {
 			TileType::Water(Liquid::default()),
 			TileType::Magma(Liquid::default()),
 			TileType::Oil(Liquid::default()),
+			TileType::Lantern(Emitter::default()),
 		]
 	}
 
@@ -34,6 +38,7 @@ impl TileType {
 			TileType::Water(_) => "Water",
 			TileType::Magma(_) => "Magma",
 			TileType::Oil(_) => "Oil",
+			TileType::Lantern(_) => "Lantern",
 		}
 		.to_owned()
 	}
@@ -47,6 +52,7 @@ impl TileType {
 			TileType::Water(_) => "water",
 			TileType::Magma(_) => "magma",
 			TileType::Oil(_) => "oil",
+			TileType::Lantern(_) => "lantern",
 			_ => panic!(
 				"get_sprite_dir_name() not implemented for passed tiletype: {}",
 				self.get_name()
@@ -153,6 +159,21 @@ impl TileType {
 		);
 	}
 
+	pub fn get_emitter(&self) -> Result<Emitter, ()> {
+		match self {
+			TileType::Lantern(e) => Ok(*e),
+			_ => Err(()),
+		}
+	}
+
+	pub fn is_emitter(&self) -> bool {
+		if let Ok(_) = self.get_emitter() {
+			true
+		} else {
+			false
+		}
+	}
+
 	pub fn liquid(&self) -> Liquid {
 		if let Ok(l) = self.get_liquid() {
 			l
@@ -184,6 +205,13 @@ impl TileType {
 			true
 		} else {
 			false
+		}
+	}
+	pub fn is_opaque(&self) -> bool {
+		match self {
+			TileType::Water(_) => false,
+			TileType::Empty => false,
+			_ => true,
 		}
 	}
 

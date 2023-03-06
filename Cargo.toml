@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 bevy = "0.9.1"
 noise = "0.8.2"
+bresenham = "0.1.1"
 
 # Enable a small amount of optimization in debug mode
 [profile.dev]

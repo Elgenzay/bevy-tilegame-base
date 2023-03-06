@@ -13,6 +13,7 @@ use bevy::{
 
 use crate::{
 	grid::{Coordinate, CreateTileEvent, DestroyTileEvent, Map},
+	light::Emitter,
 	playerphysics::Position,
 	players::Player,
 	sprites::Sprites,
@@ -111,6 +112,12 @@ fn place_tiles(
 				TileType::Oil(Liquid::default()),
 				None,
 			));
+		} else if kb_input.just_pressed(KeyCode::Key8) {
+			ev_createtile.send(CreateTileEvent::new(
+				world_coord,
+				TileType::Lantern(Emitter::default()),
+				None,
+			));
 		}
 		let size = if m_input.pressed(MouseButton::Left) {
 			1
@@ -120,6 +127,7 @@ fn place_tiles(
 			0
 		};
 		if size != 0 {
+			//ev_destroytile.send(DestroyTileEvent(world_coord.as_tile_coord()));
 			for x in -size..=size {
 				for y in -size..=size {
 					ev_destroytile.send(DestroyTileEvent(
@@ -243,46 +251,55 @@ fn update_info(
 		};
 		let cursor_pos = Coordinate::world_coord_from_vec2(cursor_pos);
 		let player_pos = Coordinate::world_coord_from_vec2(player_pos);
-		let (ct_name, ct_weighted, ct_granularity, ct_liquidlevel, ct_momentum, ct_flowdir) =
-			if let Ok(t) = map.get_tile(cursor_pos) {
-				(
-					t.tile_type.get_name(),
-					t.tile_type.is_weighted().to_string(),
-					t.tile_type.get_granularity().to_string(),
-					if let Ok(liquid) = t.tile_type.get_liquid() {
-						liquid.level.to_string()
-					} else {
-						"null".to_owned()
-					},
-					if let Ok(liquid) = t.tile_type.get_liquid() {
-						liquid.momentum.to_string()
-					} else {
-						"null".to_owned()
-					},
-					if let Ok(liquid) = t.tile_type.get_liquid() {
-						if let Some(v) = liquid.flowing_right {
-							if v {
-								"right".to_owned()
-							} else {
-								"left".to_owned()
-							}
+		let (
+			ct_name,
+			ct_weighted,
+			ct_granularity,
+			ct_liquidlevel,
+			ct_momentum,
+			ct_flowdir,
+			ct_lightlevel,
+		) = if let Ok(t) = map.get_tile(cursor_pos) {
+			(
+				t.tile_type.get_name(),
+				t.tile_type.is_weighted().to_string(),
+				t.tile_type.get_granularity().to_string(),
+				if let Ok(liquid) = t.tile_type.get_liquid() {
+					liquid.level.to_string()
+				} else {
+					"null".to_owned()
+				},
+				if let Ok(liquid) = t.tile_type.get_liquid() {
+					liquid.momentum.to_string()
+				} else {
+					"null".to_owned()
+				},
+				if let Ok(liquid) = t.tile_type.get_liquid() {
+					if let Some(v) = liquid.flowing_right {
+						if v {
+							"right".to_owned()
 						} else {
-							"none".to_owned()
+							"left".to_owned()
 						}
 					} else {
-						"null".to_owned()
-					},
-				)
-			} else {
-				(
-					"null".to_owned(),
-					"null".to_owned(),
-					"null".to_owned(),
-					"null".to_owned(),
-					"null".to_owned(),
-					"null".to_owned(),
-				)
-			};
+						"none".to_owned()
+					}
+				} else {
+					"null".to_owned()
+				},
+				t.light_level.to_string(),
+			)
+		} else {
+			(
+				"null".to_owned(),
+				"null".to_owned(),
+				"null".to_owned(),
+				"null".to_owned(),
+				"null".to_owned(),
+				"null".to_owned(),
+				"null".to_owned(),
+			)
+		};
 
 		let info = format!(
 			"
@@ -303,7 +320,8 @@ fn update_info(
 			      granularity: {}\n
 			     liquid level: {}\n
 			         momentum: {}\n
-			          flowdir: {}",
+			          flowdir: {}\n
+			      light level: {}",
 			framerate.avg_frame_rate,
 			player_pos.as_tile_coord().x_i32(),
 			player_pos.as_tile_coord().y_i32(),
@@ -326,7 +344,8 @@ fn update_info(
 			ct_granularity,
 			ct_liquidlevel,
 			ct_momentum,
-			ct_flowdir
+			ct_flowdir,
+			ct_lightlevel
 		);
 
 		*t = Text::from_section(
