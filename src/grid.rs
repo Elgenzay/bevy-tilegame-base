@@ -11,9 +11,9 @@ use crate::{
 };
 use bevy::{
 	prelude::{
-		App, BuildChildren, Children, Commands, Component, CoreStage, Deref, DerefMut,
-		DespawnRecursiveExt, Entity, EventReader, EventWriter, IVec2, Plugin, Query, Res, ResMut,
-		Resource, SystemStage, Transform, Vec2, Vec3, VisibilityBundle, With,
+		App, BuildChildren, Children, Commands, Component, Deref, DerefMut, DespawnRecursiveExt,
+		Entity, EventReader, EventWriter, IVec2, IntoSystemConfigs, Plugin, Query, Res, ResMut,
+		Resource, Transform, Vec2, Vec3, VisibilityBundle, With,
 	},
 	transform::TransformBundle,
 	utils::hashbrown::HashMap,
@@ -24,19 +24,10 @@ pub struct Grid;
 
 impl Plugin for Grid {
 	fn build(&self, app: &mut App) {
-		static LOAD_CHUNKS: &str = "loadchunk";
-
 		app.insert_resource(Map(HashMap::new()))
 			.add_event::<DestroyTileEvent>()
 			.add_event::<CreateTileEvent>()
-			.add_stage_before(
-				CoreStage::PreUpdate,
-				LOAD_CHUNKS,
-				SystemStage::single_threaded(),
-			)
-			.add_system_to_stage(LOAD_CHUNKS, render_chunks)
-			.add_system(destroy_tile_event)
-			.add_system(create_tile_event);
+			.add_systems((render_chunks, destroy_tile_event, create_tile_event).chain());
 	}
 }
 

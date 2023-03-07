@@ -2,8 +2,8 @@ use std::{mem::discriminant, panic};
 
 use bevy::{
 	prelude::{
-		App, Commands, Component, CoreStage, Entity, EventReader, EventWriter, Plugin, Query, Res,
-		ResMut, Transform, Vec2, Vec3,
+		App, Commands, Component, Entity, EventReader, EventWriter, Plugin, Query, Res, ResMut,
+		Transform, Vec2, Vec3,
 	},
 	sprite::SpriteBundle,
 };
@@ -32,9 +32,9 @@ impl Plugin for TilePhysics {
 		app.add_system(apply_gravity)
 			.add_event::<UpdateTileEvent>()
 			.add_event::<UpdateOutlineSpriteEvent>()
-			.add_system_to_stage(CoreStage::PostUpdate, update_outline_sprite_event)
-			.add_system_to_stage(CoreStage::PreUpdate, update_tile)
-			.add_system_to_stage(CoreStage::PreUpdate, flow_liquid_tile);
+			.add_system(update_outline_sprite_event)
+			.add_system(update_tile)
+			.add_system(flow_liquid_tile);
 	}
 }
 
@@ -250,7 +250,11 @@ fn flow_liquid_tile(
 			let tile_entity = tuple.0;
 			let tile = tuple.1;
 			let maptile = if let Ok(t) = map.get_tile(tile.coord) {
-				t
+				if t.tile_type.is_liquid() {
+					t
+				} else {
+					continue;
+				}
 			} else {
 				continue;
 			};

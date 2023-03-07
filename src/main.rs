@@ -21,11 +21,11 @@ use light::Light;
 use playerphysics::{PlayerPhysics, Position, Velocity};
 use players::{Player, PlayerBundle, Players};
 use settings::Settings;
-use sprites::{Sprites, SpritesPlugin};
+use sprites::{setup_sprites, Sprites, SpritesPlugin};
 use tilephysics::TilePhysics;
 
-const WINDOW_DEFAULT_WIDTH: f32 = 1280.0;
-const WINDOW_DEFAULT_HEIGHT: f32 = 720.0;
+//const WINDOW_DEFAULT_WIDTH: f32 = 1280.0;
+//const WINDOW_DEFAULT_HEIGHT: f32 = 720.0;
 
 const CHUNK_SIZE: (u8, u8) = (32, 32);
 const TILE_SIZE: UVec2 = UVec2::new(8, 8);
@@ -65,14 +65,11 @@ fn main() {
 		.add_plugins(
 			DefaultPlugins
 				.set(WindowPlugin {
-					window: WindowDescriptor {
-						width: WINDOW_DEFAULT_WIDTH,
-						height: WINDOW_DEFAULT_HEIGHT,
+					primary_window: Some(Window {
 						resizable: true,
 						title: String::from("framework"),
-						cursor_visible: false,
 						..Default::default()
-					},
+					}),
 					..default()
 				})
 				.set(ImagePlugin::default_nearest()),
@@ -86,7 +83,7 @@ fn main() {
 		.add_plugin(SpritesPlugin)
 		.add_plugin(Light)
 		.add_plugin(DevTools)
-		.add_startup_system(startup)
+		.add_startup_systems((setup_sprites, apply_system_buffers, startup).chain())
 		.add_system(tick)
 		.insert_resource(Settings {
 			..Default::default()

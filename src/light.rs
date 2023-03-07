@@ -1,7 +1,6 @@
 use bevy::{
 	prelude::{
-		App, Color, Commands, CoreStage, EventReader, EventWriter, Plugin, ResMut, Resource,
-		StartupStage, Transform, Vec2,
+		App, Color, Commands, EventReader, EventWriter, Plugin, ResMut, Resource, Transform, Vec2,
 	},
 	sprite::{Sprite, SpriteBundle},
 	utils::{HashMap, HashSet},
@@ -18,9 +17,9 @@ impl Plugin for Light {
 	fn build(&self, app: &mut App) {
 		app.add_event::<AddLightSourceEvent>()
 			.add_event::<LightingUpdateEvent>()
-			.add_system_to_stage(CoreStage::Last, add_lightsource_event)
-			.add_system_to_stage(CoreStage::Update, lighting_update_event)
-			.add_startup_system_to_stage(StartupStage::PreStartup, initialize_lightsources);
+			.add_system(add_lightsource_event)
+			.add_system(lighting_update_event)
+			.add_startup_system(initialize_lightsources);
 	}
 }
 

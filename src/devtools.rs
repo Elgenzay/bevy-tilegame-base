@@ -1,9 +1,10 @@
 use bevy::{
 	input::mouse::MouseWheel,
 	prelude::{
-		App, BuildChildren, Color, Commands, Component, CoreStage, Entity, EventReader,
-		EventWriter, Input, KeyCode, MouseButton, OrthographicProjection, Plugin, Query, Res,
-		ResMut, Resource, StartupStage, TextBundle, Transform, Vec2, Vec3, With,
+		apply_system_buffers, App, BuildChildren, Color, Commands, Component, Entity, EventReader,
+		EventWriter, Input, IntoSystemConfig, IntoSystemConfigs, KeyCode, MouseButton,
+		OrthographicProjection, Plugin, Query, Res, ResMut, Resource, TextBundle, Transform, Vec2,
+		Vec3, With,
 	},
 	sprite::SpriteBundle,
 	text::{Text, TextAlignment, TextStyle},
@@ -17,6 +18,7 @@ use crate::{
 	playerphysics::Position,
 	players::Player,
 	sprites::Sprites,
+	startup,
 	tilephysics::UpdateTileEvent,
 	tiletypes::{Liquid, TileType},
 	MainCamera, UIWrapper, WorldCursor, CAMERA_PROJECTION_SCALE,
@@ -28,13 +30,13 @@ impl Plugin for DevTools {
 	fn build(&self, app: &mut App) {
 		app.add_system(place_tiles)
 			.add_event::<ToggleDebugUI>()
-			.add_system_to_stage(CoreStage::First, debug_input)
+			.add_system(debug_input)
 			.add_system(camera_zoom)
 			.add_system(tileupdate)
 			.add_system(tickmarkers)
 			.add_system(toggle_debug_ui_event)
-			.add_system_to_stage(CoreStage::PostUpdate, update_info)
-			.add_startup_system_to_stage(StartupStage::PostStartup, setup_devtools);
+			.add_system(update_info)
+			.add_startup_systems((apply_system_buffers.after(startup), setup_devtools).chain());
 	}
 }
 
@@ -192,7 +194,7 @@ fn setup_devtools(mut commands: Commands, q_wrapper: Query<Entity, With<UIWrappe
 				},
 				..Default::default()
 			})
-			.with_text_alignment(TextAlignment::TOP_LEFT),
+			.with_text_alignment(TextAlignment::Left),
 			DebugInfo,
 		))
 		.id();
@@ -258,6 +260,7 @@ fn update_info(
 			ct_liquidlevel,
 			ct_momentum,
 			ct_flowdir,
+			ct_fluidity,
 			ct_lightlevel,
 		) = if let Ok(t) = map.get_tile(cursor_pos) {
 			(
@@ -287,10 +290,16 @@ fn update_info(
 				} else {
 					"null".to_owned()
 				},
+				if t.tile_type.is_liquid() {
+					t.tile_type.get_fluidity().to_string()
+				} else {
+					"null".to_owned()
+				},
 				t.light_level.to_string(),
 			)
 		} else {
 			(
+				"null".to_owned(),
 				"null".to_owned(),
 				"null".to_owned(),
 				"null".to_owned(),
@@ -321,6 +330,7 @@ fn update_info(
 			     liquid level: {}\n
 			         momentum: {}\n
 			          flowdir: {}\n
+			         fluidity: {}\n
 			      light level: {}",
 			framerate.avg_frame_rate,
 			player_pos.as_tile_coord().x_i32(),
@@ -345,6 +355,7 @@ fn update_info(
 			ct_liquidlevel,
 			ct_momentum,
 			ct_flowdir,
+			ct_fluidity,
 			ct_lightlevel
 		);
 

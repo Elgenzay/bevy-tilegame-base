@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = "0.9.1"
+bevy = "0.10.0"
 noise = "0.8.2"
 bresenham = "0.1.1"
 

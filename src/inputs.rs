@@ -5,20 +5,19 @@ use crate::{
 };
 use bevy::{
 	prelude::{
-		App, Camera, CoreStage, GlobalTransform, Input, KeyCode, Plugin, Query, Res, Transform,
-		Vec2, Vec3, With, Without,
+		App, Camera, GlobalTransform, Input, KeyCode, Plugin, Query, Res, Transform, Vec2, Vec3,
+		With, Without,
 	},
-	render::camera::RenderTarget,
 	ui::{Style, UiRect, Val},
-	window::Windows,
+	window::Window,
 };
 
 pub struct Inputs;
 
 impl Plugin for Inputs {
 	fn build(&self, app: &mut App) {
-		app.add_system_to_stage(CoreStage::First, mouse_events_system)
-			.add_system_to_stage(CoreStage::First, keyboard_events_system);
+		app.add_system(mouse_events_system)
+			.add_system(keyboard_events_system);
 	}
 }
 
@@ -112,7 +111,7 @@ fn keyboard_events_system(
 }
 
 fn mouse_events_system(
-	wnds: Res<Windows>,
+	wnds: Query<&Window>,
 	q_camera: Query<(&Camera, &GlobalTransform), With<Camera>>,
 	mut q_worldcursor: Query<&mut Transform, With<WorldCursor>>,
 	mut q_screencursor: Query<&mut Style, (With<ScreenCursor>, Without<WorldCursor>)>,
@@ -122,10 +121,10 @@ fn mouse_events_system(
 		Ok(v) => v,
 		Err(_) => return,
 	};
-	let wnd = if let RenderTarget::Window(id) = camera.target {
-		wnds.get(id).unwrap()
+	let wnd = if let Ok(v) = wnds.get_single() {
+		v
 	} else {
-		wnds.get_primary().unwrap()
+		return;
 	};
 	if let Some(screen_pos) = wnd.cursor_position() {
 		let window_size = Vec2::new(wnd.width() as f32, wnd.height() as f32);

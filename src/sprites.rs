@@ -1,7 +1,7 @@
 use std::fs::read_dir;
 
 use bevy::{
-	prelude::{App, AssetServer, Commands, Handle, Image, Plugin, Res, Resource, StartupStage},
+	prelude::{App, AssetServer, Commands, Handle, Image, Plugin, Res, Resource},
 	text::Font,
 	utils::HashMap,
 };
@@ -10,12 +10,12 @@ use crate::tiletypes::TileType;
 
 pub struct SpritesPlugin;
 impl Plugin for SpritesPlugin {
-	fn build(&self, app: &mut App) {
-		app.add_startup_system_to_stage(StartupStage::PreStartup, setup);
+	fn build(&self, _app: &mut App) {
+		//app.add_system(setup_sprites);
 	}
 }
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+pub fn setup_sprites(mut commands: Commands, asset_server: Res<AssetServer>) {
 	let mut tiles = HashMap::new();
 	for tile_type in TileType::all() {
 		if !tile_type.is_visible() {
