@@ -12,8 +12,9 @@ mod tiles;
 mod tiletypes;
 mod worldgen;
 
-use bevy::math::Vec3;
 use bevy::prelude::*;
+use bevy::window::WindowResolution;
+use bevy::{math::Vec3, window::Cursor};
 use devtools::DevTools;
 use grid::Grid;
 use inputs::Inputs;
@@ -24,8 +25,8 @@ use settings::Settings;
 use sprites::{setup_sprites, Sprites, SpritesPlugin};
 use tilephysics::TilePhysics;
 
-//const WINDOW_DEFAULT_WIDTH: f32 = 1280.0;
-//const WINDOW_DEFAULT_HEIGHT: f32 = 720.0;
+const WINDOW_DEFAULT_WIDTH: f32 = 1280.0;
+const WINDOW_DEFAULT_HEIGHT: f32 = 720.0;
 
 const CHUNK_SIZE: (u8, u8) = (32, 32);
 const TILE_SIZE: UVec2 = UVec2::new(8, 8);
@@ -68,7 +69,15 @@ fn main() {
 					primary_window: Some(Window {
 						resizable: true,
 						title: String::from("framework"),
-						..Default::default()
+						cursor: Cursor {
+							visible: false,
+							..default()
+						},
+						resolution: WindowResolution::new(
+							WINDOW_DEFAULT_WIDTH,
+							WINDOW_DEFAULT_HEIGHT,
+						),
+						..default()
 					}),
 					..default()
 				})
