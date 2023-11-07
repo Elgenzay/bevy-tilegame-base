@@ -2,8 +2,8 @@ use std::{mem::discriminant, panic};
 
 use bevy::{
 	prelude::{
-		App, Commands, Component, Entity, EventReader, EventWriter, Plugin, Query, Res, ResMut,
-		Transform, Vec2, Vec3,
+		App, Commands, Component, Entity, Event, EventReader, EventWriter, Plugin, PostUpdate,
+		PreUpdate, Query, Res, ResMut, Transform, Update, Vec2, Vec3,
 	},
 	sprite::SpriteBundle,
 };
@@ -29,12 +29,12 @@ pub struct TilePhysics;
 
 impl Plugin for TilePhysics {
 	fn build(&self, app: &mut App) {
-		app.add_system(apply_gravity)
+		app.add_systems(Update, apply_gravity)
 			.add_event::<UpdateTileEvent>()
 			.add_event::<UpdateOutlineSpriteEvent>()
-			.add_system(update_outline_sprite_event)
-			.add_system(update_tile)
-			.add_system(flow_liquid_tile);
+			.add_systems(PreUpdate, update_outline_sprite_event)
+			.add_systems(PostUpdate, update_tile)
+			.add_systems(Update, flow_liquid_tile);
 	}
 }
 
@@ -46,7 +46,7 @@ pub fn update_tile(
 	mut commands: Commands,
 	sprites: Res<Sprites>,
 ) {
-	for ev in ev_update.iter() {
+	for ev in ev_update.read() {
 		let tile = if let Ok(t) = map.get_tile(ev.0) {
 			t
 		} else {
@@ -92,7 +92,7 @@ fn update_outline_sprite_event(
 	mut commands: Commands,
 	sprites: Res<Sprites>,
 ) {
-	for ev in ev_update.iter() {
+	for ev in ev_update.read() {
 		if let Ok(maptile) = map.get_tile(ev.0) {
 			update_outline_sprite(maptile, &mut commands, &sprites, &map);
 		}
@@ -169,7 +169,7 @@ fn apply_gravity(
 	mut ev_addlightsource: EventWriter<AddLightSourceEvent>,
 	mut ev_updatelighting: EventWriter<LightingUpdateEvent>,
 ) {
-	for _ in tick.iter() {
+	for _ in tick.read() {
 		let mut tuples = vec![];
 		for (entity, tile, weighted_tile, falling_tile) in q_falling_tile.iter_mut() {
 			tuples.push((entity, tile, weighted_tile, falling_tile.y));
@@ -236,7 +236,7 @@ fn flow_liquid_tile(
 	mut ev_addlightsource: EventWriter<AddLightSourceEvent>,
 	mut ev_updatelighting: EventWriter<LightingUpdateEvent>,
 ) {
-	for t in tick.iter() {
+	for t in tick.read() {
 		let mut tuples = vec![];
 		for (tile_entity, tile, flowing_tile) in q_flowing_tiles.iter() {
 			tuples.push((tile_entity, tile, flowing_tile.x));
@@ -630,5 +630,8 @@ fn get_fall_coord(
 	Ok(None)
 }
 
+#[derive(Event)]
 pub struct UpdateTileEvent(pub Coordinate);
+
+#[derive(Event)]
 pub struct UpdateOutlineSpriteEvent(pub Coordinate);

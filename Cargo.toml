@@ -1,10 +1,10 @@
 [package]
-name = "framework"
+name = "bevy-tilegame-base"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = { git = "https://github.com/bevyengine/bevy.git", branch = "main" }
+bevy = "0.12.0"
 noise = "0.8.2"
 bresenham = "0.1.1"
 

@@ -4,7 +4,7 @@ use crate::{
 	PLAYER_JUMP_FORCE, PLAYER_SPEED,
 };
 use bevy::{
-	prelude::{App, Bundle, Component, Plugin, Query, Res, Transform, Vec3, With, Without},
+	prelude::{App, Bundle, Component, Plugin, Query, Res, Transform, Update, Vec3, With, Without},
 	time::Time,
 };
 
@@ -12,7 +12,8 @@ pub struct Players;
 
 impl Plugin for Players {
 	fn build(&self, app: &mut App) {
-		app.add_system(move_player).add_system(camera_follow);
+		app.add_systems(Update, move_player)
+			.add_systems(Update, camera_follow);
 	}
 }
 
@@ -165,11 +166,7 @@ fn camera_follow(
 
 	for (player, player_position) in q_player.into_iter() {
 		if let Player::Local = player {
-			let target = Vec3::new(
-				player_position.0.x,
-				player_position.0.y,
-				camera_transform.translation.z,
-			);
+			let target = Vec3::new(player_position.0.x, player_position.0.y, 100.0);
 			camera_transform.translation = camera_transform
 				.translation
 				.lerp(target.lerp(cursor_transform.translation, 0.01), 0.03);

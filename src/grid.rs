@@ -12,8 +12,8 @@ use crate::{
 use bevy::{
 	prelude::{
 		App, BuildChildren, Children, Commands, Component, Deref, DerefMut, DespawnRecursiveExt,
-		Entity, EventReader, EventWriter, IVec2, IntoSystemConfigs, Plugin, Query, Res, ResMut,
-		Resource, Transform, Vec2, Vec3, VisibilityBundle, With,
+		Entity, Event, EventReader, EventWriter, IVec2, IntoSystemConfigs, Plugin, Query, Res,
+		ResMut, Resource, Transform, Update, Vec2, Vec3, VisibilityBundle, With,
 	},
 	transform::TransformBundle,
 	utils::hashbrown::HashMap,
@@ -27,7 +27,10 @@ impl Plugin for Grid {
 		app.insert_resource(Map(HashMap::new()))
 			.add_event::<DestroyTileEvent>()
 			.add_event::<CreateTileEvent>()
-			.add_systems((render_chunks, destroy_tile_event, create_tile_event).chain());
+			.add_systems(
+				Update,
+				(render_chunks, destroy_tile_event, create_tile_event).chain(),
+			);
 	}
 }
 
@@ -551,7 +554,7 @@ fn destroy_tile_event(
 	mut commands: Commands,
 	sprites: Res<Sprites>,
 ) {
-	for ev in ev_destroy.iter() {
+	for ev in ev_destroy.read() {
 		set_tile(
 			&mut commands,
 			ev.0,
@@ -622,7 +625,7 @@ pub fn create_tile_event(
 	mut ev_updatelighting: EventWriter<LightingUpdateEvent>,
 	sprites: Res<Sprites>,
 ) {
-	for ev in ev_create.iter() {
+	for ev in ev_create.read() {
 		if let Some(prev_maptile) = ev.prev_maptile {
 			if let Ok(t) = map.get_tile(ev.coord) {
 				if t.tile_type != prev_maptile.tile_type {
@@ -659,7 +662,10 @@ pub fn xorshift_from_coord(coord: Coordinate) -> i32 {
 	i / 10
 }
 
+#[derive(Event)]
 pub struct DestroyTileEvent(pub Coordinate);
+
+#[derive(Event)]
 pub struct CreateTileEvent {
 	pub coord: Coordinate,
 	pub new_tile_type: TileType,

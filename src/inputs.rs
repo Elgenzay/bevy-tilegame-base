@@ -5,10 +5,10 @@ use crate::{
 };
 use bevy::{
 	prelude::{
-		App, Camera, GlobalTransform, Input, KeyCode, Plugin, Query, Res, Transform, Vec2, Vec3,
-		With, Without,
+		App, Camera, GlobalTransform, Input, KeyCode, Plugin, Query, Res, Transform, Update, With,
+		Without,
 	},
-	ui::{Style, UiRect, Val},
+	ui::{Style, Val},
 	window::Window,
 };
 
@@ -16,8 +16,8 @@ pub struct Inputs;
 
 impl Plugin for Inputs {
 	fn build(&self, app: &mut App) {
-		app.add_system(mouse_events_system)
-			.add_system(keyboard_events_system);
+		app.add_systems(Update, mouse_events_system)
+			.add_systems(Update, keyboard_events_system);
 	}
 }
 
@@ -126,28 +126,22 @@ fn mouse_events_system(
 	} else {
 		return;
 	};
+
 	if let Some(screen_pos) = wnd.cursor_position() {
-		let window_size = Vec2::new(wnd.width() as f32, wnd.height() as f32);
-		let ndc = (screen_pos / window_size) * 2.0 - Vec2::ONE;
-		let ndc_to_world = camera_transform.compute_matrix() * camera.projection_matrix().inverse();
-		let world_pos = ndc_to_world.project_point3(ndc.extend(-1.0));
-		let world_pos: Vec2 = world_pos.truncate();
-		let cursorlocation = Vec3::new(world_pos.x.floor(), world_pos.y.floor(), 1.0);
-		let mut worldcursor = match q_worldcursor.get_single_mut() {
-			Ok(v) => v,
-			Err(_) => return,
-		};
-		if worldcursor.translation != cursorlocation {
-			worldcursor.translation = cursorlocation;
-		}
-		let mut screencursor = match q_screencursor.get_single_mut() {
-			Ok(v) => v,
-			Err(_) => return,
-		};
-		screencursor.position = UiRect {
-			left: Val::Px(screen_pos.x),
-			top: Val::Px(-screen_pos.y + wnd.height()),
-			..Default::default()
-		};
+		camera
+			.viewport_to_world(camera_transform, screen_pos)
+			.map(|ray| ray.origin.truncate())
+			.map(|world_position| {
+				if let Ok(mut screencursor) = q_screencursor.get_single_mut() {
+					screencursor.left = Val::Px(screen_pos.x);
+					screencursor.top = Val::Px(screen_pos.y);
+				}
+
+				if let Ok(mut worldcursor) = q_worldcursor.get_single_mut() {
+					if worldcursor.translation.truncate() != world_position {
+						worldcursor.translation = world_position.extend(worldcursor.translation.z);
+					}
+				}
+			});
 	}
 }

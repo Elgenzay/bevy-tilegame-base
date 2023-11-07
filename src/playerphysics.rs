@@ -5,7 +5,8 @@ use crate::{
 };
 use bevy::{
 	prelude::{
-		App, Children, Component, Deref, DerefMut, Plugin, Query, Res, Transform, Vec2, With,
+		App, Children, Component, Deref, DerefMut, Plugin, Query, Res, Transform, Update, Vec2,
+		With,
 	},
 	time::Time,
 };
@@ -14,9 +15,9 @@ pub struct PlayerPhysics;
 
 impl Plugin for PlayerPhysics {
 	fn build(&self, app: &mut App) {
-		app.add_system(apply_velocity)
-			.add_system(apply_gravity)
-			.add_system(motion_tween);
+		app.add_systems(Update, apply_velocity)
+			.add_systems(Update, apply_gravity)
+			.add_systems(Update, motion_tween);
 	}
 }
 

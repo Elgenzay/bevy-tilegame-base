@@ -1,15 +1,15 @@
 use bevy::{
 	input::mouse::MouseWheel,
 	prelude::{
-		apply_system_buffers, App, BuildChildren, Color, Commands, Component, Entity, EventReader,
-		EventWriter, Input, IntoSystemConfig, IntoSystemConfigs, KeyCode, MouseButton,
-		OrthographicProjection, Plugin, Query, Res, ResMut, Resource, TextBundle, Transform, Vec2,
-		Vec3, With,
+		apply_deferred, App, BuildChildren, Color, Commands, Component, Entity, Event, EventReader,
+		EventWriter, Input, IntoSystemConfigs, KeyCode, MouseButton, OrthographicProjection,
+		Plugin, Query, Res, ResMut, Resource, Startup, TextBundle, Transform, Update, Vec2, Vec3,
+		With,
 	},
 	sprite::SpriteBundle,
 	text::{Text, TextAlignment, TextStyle},
 	time::Time,
-	ui::{PositionType, Style, UiRect, Val},
+	ui::{PositionType, Style, Val},
 };
 
 use crate::{
@@ -28,15 +28,18 @@ pub struct DevTools;
 
 impl Plugin for DevTools {
 	fn build(&self, app: &mut App) {
-		app.add_system(place_tiles)
+		app.add_systems(Update, place_tiles)
 			.add_event::<ToggleDebugUI>()
-			.add_system(debug_input)
-			.add_system(camera_zoom)
-			.add_system(tileupdate)
-			.add_system(tickmarkers)
-			.add_system(toggle_debug_ui_event)
-			.add_system(update_info)
-			.add_startup_systems((apply_system_buffers.after(startup), setup_devtools).chain());
+			.add_systems(Update, debug_input)
+			.add_systems(Update, camera_zoom)
+			.add_systems(Update, tileupdate)
+			.add_systems(Update, tickmarkers)
+			.add_systems(Update, toggle_debug_ui_event)
+			.add_systems(Update, update_info)
+			.add_systems(
+				Startup,
+				(apply_deferred.after(startup), setup_devtools).chain(),
+			);
 	}
 }
 
@@ -60,7 +63,7 @@ fn toggle_debug_ui_event(
 	mut states: ResMut<DebugStates>,
 	sprites: Res<Sprites>,
 ) {
-	for _ in ev.iter() {
+	for _ in ev.read() {
 		states.debug_ui_enabled = !states.debug_ui_enabled;
 		if !states.debug_ui_enabled {
 			if let Ok(mut t) = q_info.get_single_mut() {
@@ -151,7 +154,7 @@ fn camera_zoom(
 	mut mouse_wheel_events: EventReader<MouseWheel>,
 	mut q_camera: Query<&mut OrthographicProjection, With<MainCamera>>,
 ) {
-	for event in mouse_wheel_events.iter() {
+	for event in mouse_wheel_events.read() {
 		if let Ok(mut camera_projection) = q_camera.get_single_mut() {
 			camera_projection.scale += {
 				if event.y > 0.0 {
@@ -187,11 +190,8 @@ fn setup_devtools(mut commands: Commands, q_wrapper: Query<Entity, With<UIWrappe
 			)
 			.with_style(Style {
 				position_type: PositionType::Absolute,
-				position: UiRect {
-					top: Val::Px(10.0),
-					left: Val::Px(10.0),
-					..Default::default()
-				},
+				top: Val::Px(10.0),
+				left: Val::Px(10.0),
 				..Default::default()
 			})
 			.with_text_alignment(TextAlignment::Left),
@@ -379,7 +379,7 @@ fn tileupdate(
 	if !state.debug_ui_enabled {
 		return;
 	}
-	for ev in ev_update.iter() {
+	for ev in ev_update.read() {
 		let world_coord = ev.0.as_world_coord();
 		commands.spawn((
 			SpriteBundle {
@@ -408,4 +408,5 @@ fn tickmarkers(mut commands: Commands, mut q_markers: Query<(Entity, &mut Update
 #[derive(Component)]
 struct UpdateMarker(u8);
 
+#[derive(Event)]
 struct ToggleDebugUI();

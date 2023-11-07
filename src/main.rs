@@ -68,7 +68,7 @@ fn main() {
 				.set(WindowPlugin {
 					primary_window: Some(Window {
 						resizable: true,
-						title: String::from("framework"),
+						title: String::from("bevy-tilegame-base"),
 						cursor: Cursor {
 							visible: false,
 							..default()
@@ -84,16 +84,16 @@ fn main() {
 				.set(ImagePlugin::default_nearest()),
 		)
 		.add_event::<TickEvent>()
-		.add_plugin(Inputs)
-		.add_plugin(Grid)
-		.add_plugin(PlayerPhysics)
-		.add_plugin(TilePhysics)
-		.add_plugin(Players)
-		.add_plugin(SpritesPlugin)
-		.add_plugin(Light)
-		.add_plugin(DevTools)
-		.add_startup_systems((setup_sprites, apply_system_buffers, startup).chain())
-		.add_system(tick)
+		.add_plugins(Inputs)
+		.add_plugins(Grid)
+		.add_plugins(PlayerPhysics)
+		.add_plugins(TilePhysics)
+		.add_plugins(Players)
+		.add_plugins(SpritesPlugin)
+		.add_plugins(Light)
+		.add_plugins(DevTools)
+		.add_systems(Startup, (setup_sprites, apply_deferred, startup).chain())
+		.add_systems(Update, tick)
 		.insert_resource(Settings {
 			..Default::default()
 		})
@@ -138,7 +138,8 @@ fn startup(mut commands: Commands, sprites: Res<Sprites>) {
 			NodeBundle {
 				style: Style {
 					position_type: PositionType::Absolute,
-					size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+					width: Val::Percent(100.0),
+					height: Val::Percent(100.0),
 					..Default::default()
 				},
 				..Default::default()
@@ -152,7 +153,8 @@ fn startup(mut commands: Commands, sprites: Res<Sprites>) {
 			ScreenCursor,
 			ImageBundle {
 				style: Style {
-					size: Size::new(Val::Px(32.0), Val::Px(32.0)),
+					width: Val::Px(32.0),
+					height: Val::Px(32.0),
 					..default()
 				},
 				image: sprites.cursor.clone().into(),
@@ -185,4 +187,5 @@ fn tick(time: Res<Time>, mut timer: ResMut<TickTimer>, mut ev: EventWriter<TickE
 	}
 }
 
+#[derive(Event)]
 pub struct TickEvent(u64);

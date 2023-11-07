@@ -1,6 +1,7 @@
 use bevy::{
 	prelude::{
-		App, Color, Commands, EventReader, EventWriter, Plugin, ResMut, Resource, Transform, Vec2,
+		App, Color, Commands, Event, EventReader, EventWriter, Plugin, ResMut, Resource, Startup,
+		Transform, Update, Vec2,
 	},
 	sprite::{Sprite, SpriteBundle},
 	utils::{HashMap, HashSet},
@@ -17,9 +18,9 @@ impl Plugin for Light {
 	fn build(&self, app: &mut App) {
 		app.add_event::<AddLightSourceEvent>()
 			.add_event::<LightingUpdateEvent>()
-			.add_system(add_lightsource_event)
-			.add_system(lighting_update_event)
-			.add_startup_system(initialize_lightsources);
+			.add_systems(Update, add_lightsource_event)
+			.add_systems(Update, lighting_update_event)
+			.add_systems(Startup, initialize_lightsources);
 	}
 }
 
@@ -32,7 +33,7 @@ fn add_lightsource_event(
 	mut lightsources: ResMut<LightSources>,
 	mut event_lightingupdate: EventWriter<LightingUpdateEvent>,
 ) {
-	for ev in event_add.iter() {
+	for ev in event_add.read() {
 		lightsources.add_lightsource(ev.0, &mut event_lightingupdate);
 	}
 }
@@ -43,7 +44,7 @@ fn lighting_update_event(
 	mut lightsources: ResMut<LightSources>,
 	mut commands: Commands,
 ) {
-	for ev in ev_update_l.iter() {
+	for ev in ev_update_l.read() {
 		if let Ok(t) = map.get_tile(ev.0) {
 			if !t.tile_type.is_emitter() {
 				lighting_update(
@@ -316,5 +317,8 @@ impl Default for Emitter {
 	}
 }
 
+#[derive(Event)]
 pub struct AddLightSourceEvent(pub MapTile);
+
+#[derive(Event)]
 pub struct LightingUpdateEvent(pub Coordinate);
