@@ -1,3 +1,5 @@
+#![allow(clippy::too_many_arguments)]
+
 mod devtools;
 mod grid;
 mod inputs;
@@ -106,11 +108,12 @@ fn main() {
 }
 
 fn startup(mut commands: Commands, sprites: Res<Sprites>) {
-	let mut projection = OrthographicProjection::default();
-	projection.scale = CAMERA_PROJECTION_SCALE;
 	commands.spawn((
 		Camera2dBundle {
-			projection,
+			projection: OrthographicProjection {
+				scale: CAMERA_PROJECTION_SCALE,
+				..Default::default()
+			},
 			..Default::default()
 		},
 		VisibilityBundle {

@@ -69,14 +69,8 @@ fn lighting_update(
 	let mut new_light_levels: HashMap<(i32, i32), u8> = HashMap::new();
 	let mut c_vec = vec![coord];
 	let mut updated_tiles = HashSet::new();
-	loop {
-		let c = if let Some(v) = c_vec.pop() {
-			v
-		} else {
-			break;
-		};
-
-		if lightsources.0.len() == 0 {
+	while let Some(c) = c_vec.pop() {
+		if lightsources.0.is_empty() {
 			break;
 		}
 		for lightsource in lightsources.0.iter_mut() {
@@ -98,11 +92,9 @@ fn lighting_update(
 					new_light_levels.insert(*k, v.light_level);
 				};
 				let new_c = Coordinate::Tile { x: k.0, y: k.1 };
-				if new_c != c {
-					if !updated_tiles.contains(&(new_c.x_i32(), new_c.y_i32())) {
-						updated_tiles.insert((new_c.x_i32(), new_c.y_i32()));
-						c_vec.push(new_c);
-					}
+				if new_c != c && !updated_tiles.contains(&(new_c.x_i32(), new_c.y_i32())) {
+					updated_tiles.insert((new_c.x_i32(), new_c.y_i32()));
+					c_vec.push(new_c);
 				}
 			}
 		}
@@ -245,7 +237,7 @@ impl LightSource {
 							//	passed_target = true;
 							//}
 							let k = (c.x_i32(), c.y_i32());
-							if let Some(_) = updated_light_tiles.get(&k) {
+							if updated_light_tiles.get(&k).is_some() {
 								//continue;
 							};
 							let distance = f32::sqrt(
@@ -257,7 +249,7 @@ impl LightSource {
 								0
 							} else {
 								let r_f32 = self.emitter.radius as f32;
-								(u8::MAX as f32 * ((r_f32 - distance as f32) / r_f32)) as u8
+								(u8::MAX as f32 * ((r_f32 - distance) / r_f32)) as u8
 							};
 
 							//if new_light_level > prev_level {

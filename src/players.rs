@@ -54,25 +54,13 @@ impl Default for MoveDirection {
 	}
 }
 
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct Jumping(pub bool);
 
-impl Default for Jumping {
-	fn default() -> Self {
-		Self(false)
-	}
-}
-
-#[derive(Component)]
+#[derive(Component, Default)]
 pub struct OnGround(pub bool);
 
-impl Default for OnGround {
-	fn default() -> Self {
-		Self(false)
-	}
-}
-
-#[derive(Bundle)]
+#[derive(Bundle, Default)]
 pub struct PlayerBundle {
 	pub player: Player,
 	pub velocity: Velocity,
@@ -82,21 +70,6 @@ pub struct PlayerBundle {
 	pub move_direction: MoveDirection,
 	pub jumping: Jumping,
 	pub position: Position,
-}
-
-impl Default for PlayerBundle {
-	fn default() -> Self {
-		Self {
-			player: Default::default(),
-			velocity: Default::default(),
-			gravity: Default::default(),
-			on_ground: Default::default(),
-			look_direction: Default::default(),
-			move_direction: Default::default(),
-			jumping: Default::default(),
-			position: Default::default(),
-		}
-	}
 }
 
 fn move_player(

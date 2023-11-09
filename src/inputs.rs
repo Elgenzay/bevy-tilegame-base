@@ -128,20 +128,20 @@ fn mouse_events_system(
 	};
 
 	if let Some(screen_pos) = wnd.cursor_position() {
-		camera
+		if let Some(world_position) = camera
 			.viewport_to_world(camera_transform, screen_pos)
 			.map(|ray| ray.origin.truncate())
-			.map(|world_position| {
-				if let Ok(mut screencursor) = q_screencursor.get_single_mut() {
-					screencursor.left = Val::Px(screen_pos.x);
-					screencursor.top = Val::Px(screen_pos.y);
-				}
+		{
+			if let Ok(mut screencursor) = q_screencursor.get_single_mut() {
+				screencursor.left = Val::Px(screen_pos.x);
+				screencursor.top = Val::Px(screen_pos.y);
+			}
 
-				if let Ok(mut worldcursor) = q_worldcursor.get_single_mut() {
-					if worldcursor.translation.truncate() != world_position {
-						worldcursor.translation = world_position.extend(worldcursor.translation.z);
-					}
+			if let Ok(mut worldcursor) = q_worldcursor.get_single_mut() {
+				if worldcursor.translation.truncate() != world_position {
+					worldcursor.translation = world_position.extend(worldcursor.translation.z);
 				}
-			});
+			}
+		};
 	}
 }

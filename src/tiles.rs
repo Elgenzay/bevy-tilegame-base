@@ -94,7 +94,7 @@ pub fn set_tile_result(
 
 		let (rot, scale) = if tile_type.morph_sprite() {
 			(
-				(i % 4) as f32 * 1.5708,
+				(i % 4) as f32 * std::f32::consts::FRAC_PI_2,
 				match (i / 10) % 3 {
 					1 => (1.0, -1.0), // flip vertical
 					2 => (-1.0, 1.0), // flip horizontal

@@ -62,26 +62,21 @@ impl TileType {
 	}
 
 	pub fn morph_sprite(&self) -> bool {
-		match self {
-			_ => true,
-		}
+		true
 	}
 
 	pub fn is_weighted(&self) -> bool {
 		if self.is_liquid() {
 			return true;
 		}
-		match self {
-			TileType::Gravel => true,
-			TileType::Sand => true,
-			_ => false,
-		}
+
+		matches!(self, TileType::Gravel | TileType::Sand)
 	}
 
 	pub fn get_matter_state(&self) -> Option<MatterState> {
 		if let TileType::Empty = self {
 			None
-		} else if let Ok(_) = self.get_liquid() {
+		} else if self.get_liquid().is_ok() {
 			Some(MatterState::Liquid)
 		} else {
 			Some(MatterState::Solid)
@@ -167,11 +162,7 @@ impl TileType {
 	}
 
 	pub fn is_emitter(&self) -> bool {
-		if let Ok(_) = self.get_emitter() {
-			true
-		} else {
-			false
-		}
+		self.get_emitter().is_ok()
 	}
 
 	pub fn liquid(&self) -> Liquid {
@@ -186,33 +177,19 @@ impl TileType {
 	}
 
 	pub fn is_visible(&self) -> bool {
-		match self {
-			TileType::Empty => false,
-			_ => true,
-		}
+		!matches!(self, TileType::Empty)
 	}
 
 	pub fn is_solid(&self) -> bool {
-		if let Some(MatterState::Solid) = self.get_matter_state() {
-			true
-		} else {
-			false
-		}
+		matches!(self.get_matter_state(), Some(MatterState::Solid))
 	}
 
 	pub fn is_liquid(&self) -> bool {
-		if let Some(MatterState::Liquid) = self.get_matter_state() {
-			true
-		} else {
-			false
-		}
+		matches!(self.get_matter_state(), Some(MatterState::Liquid))
 	}
+
 	pub fn is_opaque(&self) -> bool {
-		match self {
-			TileType::Water(_) => false,
-			TileType::Empty => false,
-			_ => true,
-		}
+		!matches!(self, TileType::Water(_) | TileType::Empty)
 	}
 
 	pub fn is_obstructed_by(&self, other: TileType) -> bool {

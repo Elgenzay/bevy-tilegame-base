@@ -218,6 +218,6 @@ fn apply_gravity(
 		if velocity.y < -TERMINAL_VELOCITY {
 			continue;
 		}
-		velocity.y = velocity.y - (gravity.0 * time.delta_seconds());
+		velocity.y -= gravity.0 * time.delta_seconds();
 	}
 }

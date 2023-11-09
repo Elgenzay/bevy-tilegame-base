@@ -135,8 +135,8 @@ impl Coordinate {
 		match self {
 			Self::World { x, y: _ } => *x as i32,
 			Self::ChunkLocal { x, y: _ } => *x as i32,
-			Self::Tile { x, y: _ } => *x as i32,
-			Self::Chunk { x, y: _ } => *x as i32,
+			Self::Tile { x, y: _ } => *x,
+			Self::Chunk { x, y: _ } => *x,
 		}
 	}
 
@@ -314,11 +314,7 @@ impl Coordinate {
 
 impl PartialEq for Coordinate {
 	fn eq(&self, other: &Self) -> bool {
-		if self.x_i32() == other.x_i32() && self.y_i32() == other.y_i32() {
-			true
-		} else {
-			false
-		}
+		self.x_i32() == other.x_i32() && self.y_i32() == other.y_i32()
 	}
 }
 
@@ -440,19 +436,21 @@ pub fn spawn_chunk(
 			let tile_x = (chunk_pos.x * CHUNK_SIZE.0 as i32) + x as i32;
 			let tile_y = (chunk_pos.y * CHUNK_SIZE.1 as i32) + y as i32;
 			let tile_type = tiletype_at(tile_x, tile_y);
-			if let Err(_) = set_tile_result(
+			if set_tile_result(
 				commands,
 				Coordinate::Tile {
 					x: tile_x,
 					y: tile_y,
 				},
 				tile_type,
-				&sprites,
+				sprites,
 				map,
 				ev_update,
 				ev_addlightsource,
 				ev_updatelighting,
-			) {
+			)
+			.is_err()
+			{
 				println!("Chunk load error");
 			};
 		}
@@ -520,7 +518,7 @@ pub fn region_collides(
 				Ok(v) => v,
 				Err(_) => continue,
 			};
-			if !regions_overlap(&tile_region, region) {
+			if !regions_overlap(tile_region, region) {
 				continue;
 			}
 			return true;

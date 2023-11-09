@@ -61,14 +61,9 @@ pub fn update_tile(
 		update_outline_sprite(tile, &mut commands, &sprites, &map);
 		if let Ok(liquid) = tile.tile_type.get_liquid() {
 			let new_sprite_override = if let Ok(above) = map.get_tile(ev.0.moved(&Vec2::Y)) {
-				if above.tile_type.is_liquid()
+				above.tile_type.is_liquid()
 					&& std::mem::discriminant(&above.tile_type)
 						!= std::mem::discriminant(&tile.tile_type)
-				{
-					true
-				} else {
-					false
-				}
 			} else {
 				false
 			};
@@ -174,7 +169,7 @@ fn apply_gravity(
 		for (entity, tile, weighted_tile, falling_tile) in q_falling_tile.iter_mut() {
 			tuples.push((entity, tile, weighted_tile, falling_tile.y));
 		}
-		if tuples.len() == 0 {
+		if tuples.is_empty() {
 			return;
 		}
 		tuples.sort_by(|a, b| a.3.cmp(&b.3));
@@ -270,11 +265,10 @@ fn flow_liquid_tile(
 			let mut right_blocked = false;
 			for i in 0..=(fluidity * fluidity) as i32 {
 				for m in if rand_bool { [-1, 1] } else { [1, -1] } {
-					if m == -1 && left_blocked {
-						continue;
-					} else if m == 1 && right_blocked {
+					if (m == -1 && left_blocked) || (m == 1 && right_blocked) {
 						continue;
 					}
+
 					let x = i * m;
 					if i == 0 && m == -1 {
 						continue;
@@ -417,30 +411,30 @@ fn flow_liquid_tile(
 					}
 				}
 			}
-			if fluidity < 10 && !(t.0 % (11 - fluidity as u64) == 0) {
+			if fluidity < 10 && t.0 % (11 - fluidity as u64) != 0 {
 				continue;
 			}
 			let get_level = |coord| {
-				return if let Ok(t) = map.get_tile(coord) {
+				if let Ok(t) = map.get_tile(coord) {
 					if discriminant(&t.tile_type) == discriminant(&maptile.tile_type) {
 						t.tile_type.liquid().level as i32 // existing liquid of same type
 					} else if !t.tile_type.is_solid() {
 						if t.tile_type.is_liquid() {
 							match maptile.tile_type.get_liquid_interaction_with(t.tile_type) {
-								LiquidInteraction::Vaporize => 0 as i32,
-								LiquidInteraction::Vaporized => -1 as i32,
-								LiquidInteraction::Float => -1 as i32,
-								LiquidInteraction::Sink => -1 as i32,
+								LiquidInteraction::Vaporize => 0_i32,
+								LiquidInteraction::Vaporized => -1_i32,
+								LiquidInteraction::Float => -1_i32,
+								LiquidInteraction::Sink => -1_i32,
 							}
 						} else {
-							0 as i32 // can flow
+							0_i32 // can flow
 						}
 					} else {
-						-1 as i32 // blocked by solid
+						-1_i32 // blocked by solid
 					}
 				} else {
-					-1 as i32 // blocked by unloaded chunk
-				};
+					-1_i32 // blocked by unloaded chunk
+				}
 			};
 
 			let left_coord = maptile.tile_coord.moved(&Vec2::NEG_X);
@@ -453,11 +447,9 @@ fn flow_liquid_tile(
 			let this_level_initial = maptile_liquid.level as i32;
 			let mut significant = false;
 			for lvl in [left_level_initial, right_level_initial] {
-				if lvl != -1 {
-					if (this_level - lvl).abs() > 1 {
-						significant = true;
-						break;
-					}
+				if lvl != -1 && (this_level - lvl).abs() > 1 {
+					significant = true;
+					break;
 				}
 			}
 
@@ -481,7 +473,7 @@ fn flow_liquid_tile(
 				)
 			};
 
-			let stagnant = if momentum <= 1 { true } else { false };
+			let stagnant = momentum <= 1;
 			if stagnant {
 				commands.entity(tile_entity).remove::<FlowingTile>();
 			} else {
@@ -490,16 +482,8 @@ fn flow_liquid_tile(
 						break;
 					}
 
-					let left_blocked = if left_level == -1 || left_level >= this_level {
-						true
-					} else {
-						false
-					};
-					let right_blocked = if right_level == -1 || right_level >= this_level {
-						true
-					} else {
-						false
-					};
+					let left_blocked = left_level == -1 || left_level >= this_level;
+					let right_blocked = right_level == -1 || right_level >= this_level;
 
 					flow_right = if right_blocked {
 						if left_blocked {
@@ -507,12 +491,10 @@ fn flow_liquid_tile(
 						} else {
 							false
 						}
+					} else if left_blocked {
+						true
 					} else {
-						if left_blocked {
-							true
-						} else {
-							flow_right
-						}
+						flow_right
 					};
 
 					if flow_right {
@@ -525,8 +507,8 @@ fn flow_liquid_tile(
 				}
 			}
 
-			let mut set_liquid = |flow_right: bool, level: i32, level_initial, coord| {
-				if level > 0 {
+			let mut set_liquid = |flow_right: bool, level: i32, level_initial, coord| match level {
+				_ if level > 0 => {
 					if level != level_initial {
 						let new_tile = maptile.tile_type.with_liquid(Liquid {
 							level: level as u8,
@@ -545,7 +527,8 @@ fn flow_liquid_tile(
 							&mut ev_updatelighting,
 						);
 					}
-				} else if level == 0 {
+				}
+				0 => {
 					set_tile(
 						&mut commands,
 						coord,
@@ -557,6 +540,7 @@ fn flow_liquid_tile(
 						&mut ev_updatelighting,
 					);
 				}
+				_ => (),
 			};
 			set_liquid(flow_right, left_level, left_level_initial, left_coord);
 			set_liquid(flow_right, right_level, right_level_initial, right_coord);
