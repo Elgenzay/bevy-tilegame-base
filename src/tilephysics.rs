@@ -2,8 +2,8 @@ use std::{mem::discriminant, panic};
 
 use bevy::{
 	prelude::{
-		App, Commands, Component, Entity, Event, EventReader, EventWriter, Plugin, PostUpdate,
-		PreUpdate, Query, Res, ResMut, Transform, Update, Vec2, Vec3,
+		App, Commands, Component, Entity, Event, EventReader, EventWriter, Last, Plugin,
+		PostUpdate, Query, Res, ResMut, Transform, Update, Vec2, Vec3,
 	},
 	sprite::SpriteBundle,
 };
@@ -29,12 +29,11 @@ pub struct TilePhysics;
 
 impl Plugin for TilePhysics {
 	fn build(&self, app: &mut App) {
-		app.add_systems(Update, apply_gravity)
-			.add_event::<UpdateTileEvent>()
+		app.add_event::<UpdateTileEvent>()
 			.add_event::<UpdateOutlineSpriteEvent>()
-			.add_systems(PreUpdate, update_outline_sprite_event)
+			.add_systems(Update, (flow_liquid_tile, apply_gravity))
 			.add_systems(PostUpdate, update_tile)
-			.add_systems(Update, flow_liquid_tile);
+			.add_systems(Last, update_outline_sprite_event);
 	}
 }
 

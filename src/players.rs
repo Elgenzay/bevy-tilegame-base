@@ -12,8 +12,7 @@ pub struct Players;
 
 impl Plugin for Players {
 	fn build(&self, app: &mut App) {
-		app.add_systems(Update, move_player)
-			.add_systems(Update, camera_follow);
+		app.add_systems(Update, (move_player, camera_follow));
 	}
 }
 

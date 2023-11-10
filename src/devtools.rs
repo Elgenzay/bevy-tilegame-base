@@ -28,14 +28,19 @@ pub struct DevTools;
 
 impl Plugin for DevTools {
 	fn build(&self, app: &mut App) {
-		app.add_systems(Update, place_tiles)
-			.add_event::<ToggleDebugUI>()
-			.add_systems(Update, debug_input)
-			.add_systems(Update, camera_zoom)
-			.add_systems(Update, tileupdate)
-			.add_systems(Update, tickmarkers)
-			.add_systems(Update, toggle_debug_ui_event)
-			.add_systems(Update, update_info)
+		app.add_event::<ToggleDebugUI>()
+			.add_systems(
+				Update,
+				(
+					debug_input,
+					camera_zoom,
+					tileupdate,
+					toggle_debug_ui_event,
+					update_info,
+					place_tiles,
+					tickmarkers,
+				),
+			)
 			.add_systems(
 				Startup,
 				(apply_deferred.after(startup), setup_devtools).chain(),

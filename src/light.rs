@@ -18,8 +18,7 @@ impl Plugin for Light {
 	fn build(&self, app: &mut App) {
 		app.add_event::<AddLightSourceEvent>()
 			.add_event::<LightingUpdateEvent>()
-			.add_systems(Update, add_lightsource_event)
-			.add_systems(Update, lighting_update_event)
+			.add_systems(Update, (add_lightsource_event, lighting_update_event))
 			.add_systems(Startup, initialize_lightsources);
 	}
 }

@@ -16,8 +16,7 @@ pub struct Inputs;
 
 impl Plugin for Inputs {
 	fn build(&self, app: &mut App) {
-		app.add_systems(Update, mouse_events_system)
-			.add_systems(Update, keyboard_events_system);
+		app.add_systems(Update, (mouse_events_system, keyboard_events_system));
 	}
 }
 

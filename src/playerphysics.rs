@@ -15,9 +15,7 @@ pub struct PlayerPhysics;
 
 impl Plugin for PlayerPhysics {
 	fn build(&self, app: &mut App) {
-		app.add_systems(Update, apply_velocity)
-			.add_systems(Update, apply_gravity)
-			.add_systems(Update, motion_tween);
+		app.add_systems(Update, (apply_velocity, apply_gravity, motion_tween));
 	}
 }
 

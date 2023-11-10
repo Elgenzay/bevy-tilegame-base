@@ -65,7 +65,7 @@ struct TickTimer(Timer, u64);
 
 fn main() {
 	App::new()
-		.add_plugins(
+		.add_plugins((
 			DefaultPlugins
 				.set(WindowPlugin {
 					primary_window: Some(Window {
@@ -84,16 +84,16 @@ fn main() {
 					..default()
 				})
 				.set(ImagePlugin::default_nearest()),
-		)
+			Inputs,
+			Grid,
+			PlayerPhysics,
+			TilePhysics,
+			Players,
+			SpritesPlugin,
+			Light,
+			DevTools,
+		))
 		.add_event::<TickEvent>()
-		.add_plugins(Inputs)
-		.add_plugins(Grid)
-		.add_plugins(PlayerPhysics)
-		.add_plugins(TilePhysics)
-		.add_plugins(Players)
-		.add_plugins(SpritesPlugin)
-		.add_plugins(Light)
-		.add_plugins(DevTools)
 		.add_systems(Startup, (setup_sprites, apply_deferred, startup).chain())
 		.add_systems(Update, tick)
 		.insert_resource(Settings {
