@@ -38,15 +38,14 @@ impl Plugin for TilePhysics {
 }
 
 pub fn update_tile(
-	map: ResMut<Map>,
+	mut map: ResMut<Map>,
 	mut ev_update: EventReader<UpdateTileEvent>,
 	mut ev_create_tile: EventWriter<CreateTileEvent>,
-	//mut ev_update_outline: EventWriter<UpdateOutlineSpriteEvent>,
 	mut commands: Commands,
 	sprites: Res<Sprites>,
 ) {
 	for ev in ev_update.read() {
-		let tile = if let Ok(t) = map.get_tile(ev.0) {
+		let tile = if let Some(t) = map.get_tile(ev.0) {
 			t
 		} else {
 			continue;
@@ -56,10 +55,11 @@ pub fn update_tile(
 				.entity(tile.tile_entity)
 				.insert(FallingTile { y: ev.0.y_i32() });
 		}
-		//ev_update_outline.send(UpdateOutlineSpriteEvent(ev.0));
-		update_outline_sprite(tile, &mut commands, &sprites, &map);
+
+		update_outline_sprite(tile, &mut commands, &sprites, &mut map);
+
 		if let Ok(liquid) = tile.tile_type.get_liquid() {
-			let new_sprite_override = if let Ok(above) = map.get_tile(ev.0.moved(&Vec2::Y)) {
+			let new_sprite_override = if let Some(above) = map.get_tile(ev.0.moved(&Vec2::Y)) {
 				above.tile_type.is_liquid()
 					&& std::mem::discriminant(&above.tile_type)
 						!= std::mem::discriminant(&tile.tile_type)
@@ -82,18 +82,23 @@ pub fn update_tile(
 
 fn update_outline_sprite_event(
 	mut ev_update: EventReader<UpdateOutlineSpriteEvent>,
-	map: Res<Map>,
+	mut map: ResMut<Map>,
 	mut commands: Commands,
 	sprites: Res<Sprites>,
 ) {
 	for ev in ev_update.read() {
-		if let Ok(maptile) = map.get_tile(ev.0) {
-			update_outline_sprite(maptile, &mut commands, &sprites, &map);
+		if let Some(maptile) = map.get_tile(ev.0) {
+			update_outline_sprite(maptile, &mut commands, &sprites, &mut map);
 		}
 	}
 }
 
-fn update_outline_sprite(maptile: MapTile, commands: &mut Commands, sprites: &Sprites, map: &Map) {
+fn update_outline_sprite(
+	maptile: MapTile,
+	commands: &mut Commands,
+	sprites: &Sprites,
+	map: &mut ResMut<Map>,
+) {
 	let outline_id = if !maptile.tile_type.is_visible() || maptile.tile_type.is_liquid() {
 		40 // no outline
 	} else {
@@ -105,8 +110,8 @@ fn update_outline_sprite(maptile: MapTile, commands: &mut Commands, sprites: &Sp
 				}
 				let tile = map.get_tile(maptile.tile_coord.moved(&Vec2::new(x as f32, y as f32)));
 				if match tile {
-					Ok(t) => t.tile_type.is_solid(),
-					Err(_) => false, // unloaded chunk
+					Some(t) => t.tile_type.is_solid(),
+					None => false, // unloaded chunk
 				} {
 					match x {
 						-1 => match y {
@@ -137,6 +142,11 @@ fn update_outline_sprite(maptile: MapTile, commands: &mut Commands, sprites: &Sp
 	if maptile.outline_id == outline_id {
 		return;
 	}
+
+	if let Some(t) = map.get_tile_mut(maptile.tile_coord) {
+		t.outline_id = outline_id;
+	}
+
 	commands
 		.entity(maptile.outline_entity)
 		.insert(SpriteBundle {
@@ -173,7 +183,7 @@ fn apply_gravity(
 		}
 		tuples.sort_by(|a, b| a.3.cmp(&b.3));
 		for tuple in tuples {
-			let maptile = if let Ok(t) = map.get_tile(tuple.1.coord) {
+			let maptile = if let Some(t) = map.get_tile(tuple.1.coord) {
 				t
 			} else {
 				continue;
@@ -243,7 +253,7 @@ fn flow_liquid_tile(
 		'outer: for tuple in tuples {
 			let tile_entity = tuple.0;
 			let tile = tuple.1;
-			let maptile = if let Ok(t) = map.get_tile(tile.coord) {
+			let maptile = if let Some(t) = map.get_tile(tile.coord) {
 				if t.tile_type.is_liquid() {
 					t
 				} else {
@@ -273,7 +283,7 @@ fn flow_liquid_tile(
 						continue;
 					}
 					let below_coord = maptile.tile_coord.moved(&Vec2::new(x as f32, -1.0));
-					if let Ok(t) = map.get_tile(below_coord) {
+					if let Some(t) = map.get_tile(below_coord) {
 						if discriminant(&t.tile_type) == discriminant(&maptile.tile_type) {
 							let other_level = t.tile_type.liquid().level;
 							let other_emptiness = u8::MAX - other_level;
@@ -414,7 +424,7 @@ fn flow_liquid_tile(
 				continue;
 			}
 			let get_level = |coord| {
-				if let Ok(t) = map.get_tile(coord) {
+				if let Some(t) = map.get_tile(coord) {
 					if discriminant(&t.tile_type) == discriminant(&maptile.tile_type) {
 						t.tile_type.liquid().level as i32 // existing liquid of same type
 					} else if !t.tile_type.is_solid() {
@@ -576,7 +586,7 @@ fn get_fall_coord(
 			let x_f32 = x_i8 as f32;
 			if x_i8 != 0 {
 				match map.get_tile(current_position.moved(&Vec2::new(x_f32, 0.0))) {
-					Ok(t) => {
+					Some(t) => {
 						if maptile.tile_type.is_obstructed_by(t.tile_type) {
 							if m == -1 {
 								left_blocked = true;
@@ -588,7 +598,7 @@ fn get_fall_coord(
 							}
 						}
 					}
-					Err(()) => return Err(()),
+					None => return Err(()),
 				}
 			}
 			if (left_blocked && m == -1) || (right_blocked && m == 1) {
@@ -596,14 +606,14 @@ fn get_fall_coord(
 			}
 			let new_coord = current_position.moved(&Vec2::new(x_f32, -1.0));
 			match map.get_tile(new_coord) {
-				Ok(t) => {
+				Some(t) => {
 					if !maptile.tile_type.is_obstructed_by(t.tile_type) {
 						return Ok(Some(new_coord));
 					} else {
 						continue;
 					}
 				}
-				Err(()) => return Err(()),
+				None => return Err(()),
 			}
 		}
 		if left_blocked && right_blocked {

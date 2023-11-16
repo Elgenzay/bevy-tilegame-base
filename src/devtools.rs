@@ -96,7 +96,9 @@ fn place_tiles(
 	if let Ok(cursor_pos) = q_cursor.get_single() {
 		let world_coord = Coordinate::world_coord_from_vec2(cursor_pos.translation.truncate());
 
-		if kb_input.pressed(KeyCode::Key1) {
+		if kb_input.pressed(KeyCode::Key0) {
+			ev_createtile.send(CreateTileEvent::new(world_coord, TileType::Empty, None));
+		} else if kb_input.pressed(KeyCode::Key1) {
 			ev_createtile.send(CreateTileEvent::new(world_coord, TileType::Sand, None));
 		} else if kb_input.pressed(KeyCode::Key2) {
 			ev_createtile.send(CreateTileEvent::new(world_coord, TileType::Dirt, None));
@@ -267,7 +269,8 @@ fn update_info(
 			ct_flowdir,
 			ct_fluidity,
 			ct_lightlevel,
-		) = if let Ok(t) = map.get_tile(cursor_pos) {
+			ct_outline_id,
+		) = if let Some(t) = map.get_tile(cursor_pos) {
 			(
 				t.tile_type.get_name(),
 				t.tile_type.is_weighted().to_string(),
@@ -301,9 +304,11 @@ fn update_info(
 					"null".to_owned()
 				},
 				t.light_level.to_string(),
+				t.outline_id.to_string(),
 			)
 		} else {
 			(
+				"null".to_owned(),
 				"null".to_owned(),
 				"null".to_owned(),
 				"null".to_owned(),
@@ -336,7 +341,8 @@ fn update_info(
 			         momentum: {}\n
 			          flowdir: {}\n
 			         fluidity: {}\n
-			      light level: {}",
+			      light level: {}\n
+			      outline id: {}",
 			framerate.avg_frame_rate,
 			player_pos.as_tile_coord().x_i32(),
 			player_pos.as_tile_coord().y_i32(),
@@ -361,7 +367,8 @@ fn update_info(
 			ct_momentum,
 			ct_flowdir,
 			ct_fluidity,
-			ct_lightlevel
+			ct_lightlevel,
+			ct_outline_id
 		);
 
 		*t = Text::from_section(

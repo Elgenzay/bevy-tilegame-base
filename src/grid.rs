@@ -69,39 +69,36 @@ impl Region {
 pub struct Map(HashMap<(i32, i32), MapChunk>);
 
 impl Map {
-	pub fn get_tile(&self, coord: Coordinate) -> Result<MapTile, ()> {
-		match coord {
-			Coordinate::Chunk { x: _, y: _ } => {
-				panic!("Chunk coordinate passed to get_tile()")
-			}
-			Coordinate::ChunkLocal { x: _, y: _ } => {
-				panic!("ChunkLocal coordinate passed to get_tile()")
-			}
-			_ => (),
-		};
-		let chunk_coord = coord.as_chunk_coord();
-		if let Some(map_chunk) = self.0.get(&(chunk_coord.x_i32(), chunk_coord.y_i32())) {
-			let local_coord = coord.as_chunklocal_coord();
-			let tile = map_chunk
-				.tiles
-				.get(&(local_coord.x_u8(), local_coord.y_u8()))
-				.expect("Unexpected missing tile in loaded chunk");
-			return Ok(*tile);
-		}
-		Err(()) // unloaded chunk
-	}
-
-	pub fn set_tile_light_level(&mut self, coord: Coordinate, light_level: u8) {
+	pub fn get_tile(&self, coord: Coordinate) -> Option<MapTile> {
 		let chunk_coord = coord.as_chunk_coord();
 		let chunklocal_coord = coord.as_chunklocal_coord();
+
+		if let Some(chunk) = self.0.get(&(chunk_coord.x_i32(), chunk_coord.y_i32())) {
+			if let Some(tile) = chunk
+				.tiles
+				.get(&(chunklocal_coord.x_u8(), chunklocal_coord.y_u8()))
+			{
+				return Some(*tile);
+			}
+		}
+
+		None
+	}
+
+	pub fn get_tile_mut(&mut self, coord: Coordinate) -> Option<&mut MapTile> {
+		let chunk_coord = coord.as_chunk_coord();
+		let chunklocal_coord = coord.as_chunklocal_coord();
+
 		if let Some(chunk) = self.0.get_mut(&(chunk_coord.x_i32(), chunk_coord.y_i32())) {
 			if let Some(tile) = chunk
 				.tiles
 				.get_mut(&(chunklocal_coord.x_u8(), chunklocal_coord.y_u8()))
 			{
-				tile.light_level = light_level
+				return Some(tile);
 			}
 		}
+
+		None
 	}
 }
 
@@ -625,7 +622,7 @@ pub fn create_tile_event(
 ) {
 	for ev in ev_create.read() {
 		if let Some(prev_maptile) = ev.prev_maptile {
-			if let Ok(t) = map.get_tile(ev.coord) {
+			if let Some(t) = map.get_tile(ev.coord) {
 				if t.tile_type != prev_maptile.tile_type {
 					continue;
 				}

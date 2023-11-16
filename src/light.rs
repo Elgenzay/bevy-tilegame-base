@@ -44,7 +44,7 @@ fn lighting_update_event(
 	mut commands: Commands,
 ) {
 	for ev in ev_update_l.read() {
-		if let Ok(t) = map.get_tile(ev.0) {
+		if let Some(t) = map.get_tile(ev.0) {
 			if !t.tile_type.is_emitter() {
 				lighting_update(
 					&mut lightsources,
@@ -101,15 +101,19 @@ fn lighting_update(
 
 	for (k, lvl) in new_light_levels.iter() {
 		let coord = Coordinate::Tile { x: k.0, y: k.1 };
-		if let Ok(t) = map.get_tile(coord) {
+		if let Some(t) = map.get_tile(coord) {
 			if t.light_level == *lvl {
 				continue;
 			}
 		} else {
 			continue;
 		}
-		map.set_tile_light_level(coord, *lvl);
-		if let Ok(t) = map.get_tile(coord) {
+
+		if let Some(t) = map.get_tile_mut(coord) {
+			t.light_level = *lvl;
+		}
+
+		if let Some(t) = map.get_tile(coord) {
 			if let Some(mut e) = commands.get_entity(t.light_entity) {
 				let color = Color::rgba_u8(0, 0, 0, u8::MAX - lvl);
 				e.insert(SpriteBundle {
@@ -231,7 +235,7 @@ impl LightSource {
 					//let mut passed_target = false;
 					let center = r.get(0).unwrap();
 					for c in r {
-						if let Ok(maptile) = map.get_tile(*c) {
+						if let Some(maptile) = map.get_tile(*c) {
 							//if *c == coord {
 							//	passed_target = true;
 							//}

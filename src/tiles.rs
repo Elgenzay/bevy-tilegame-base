@@ -64,7 +64,7 @@ pub fn set_tile_result(
 	let chunklocal_coord = coord.as_chunklocal_coord();
 	let chunk_coord = coord.as_chunk_coord();
 
-	let maptile = if let Ok(t) = map.get_tile(tile_coord) {
+	let maptile = if let Some(t) = map.get_tile(tile_coord) {
 		t
 	} else {
 		return Err(());
