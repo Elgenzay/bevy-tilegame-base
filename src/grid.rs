@@ -445,6 +445,7 @@ pub fn spawn_chunk(
 				ev_update,
 				ev_addlightsource,
 				ev_updatelighting,
+				None,
 			)
 			.is_err()
 			{
@@ -559,6 +560,7 @@ fn destroy_tile_event(
 			&mut ev_update,
 			&mut ev_addlightsource,
 			&mut ev_updatelighting,
+			None,
 		);
 	}
 }
@@ -639,6 +641,7 @@ pub fn create_tile_event(
 			&mut ev_update,
 			&mut ev_addlightsource,
 			&mut ev_updatelighting,
+			None,
 		);
 	}
 }

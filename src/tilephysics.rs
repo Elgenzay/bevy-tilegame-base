@@ -13,9 +13,9 @@ use crate::{
 	light::{AddLightSourceEvent, LightingUpdateEvent},
 	sprites::Sprites,
 	tileoutline::ConnectedNeighbors,
-	tiles::{set_tile, FallingTile, Tile, WeightedTile},
+	tiles::{create_tile_spritebundle, set_tile, FallingTile, Tile, WeightedTile},
 	tiletypes::{Liquid, LiquidInteraction, TileType},
-	TickEvent,
+	TickEvent, TickTimer,
 };
 
 const INITIAL_LIQUID_MOMENTUM: u8 = 200;
@@ -172,6 +172,7 @@ fn apply_gravity(
 	sprites: Res<Sprites>,
 	mut ev_addlightsource: EventWriter<AddLightSourceEvent>,
 	mut ev_updatelighting: EventWriter<LightingUpdateEvent>,
+	ticktimer: ResMut<TickTimer>,
 ) {
 	for _ in tick.read() {
 		let mut tuples = vec![];
@@ -201,6 +202,7 @@ fn apply_gravity(
 							&mut ev_updatetile,
 							&mut ev_addlightsource,
 							&mut ev_updatelighting,
+							None,
 						);
 						set_tile(
 							&mut commands,
@@ -211,9 +213,19 @@ fn apply_gravity(
 							&mut ev_updatetile,
 							&mut ev_addlightsource,
 							&mut ev_updatelighting,
+							Some(ticktimer.1 as i32 + coord.y_i32()),
 						);
 					}
 					None => {
+						commands
+							.entity(maptile.sprite_entity)
+							.insert(create_tile_spritebundle(
+								tuple.1.tile_type,
+								current_position,
+								&sprites,
+								None,
+							));
+
 						let mut cmds = commands.entity(tuple.0);
 						cmds.remove::<FallingTile>();
 						if maptile.tile_type.is_liquid() {
@@ -312,6 +324,7 @@ fn flow_liquid_tile(
 									&mut ev_updatetile,
 									&mut ev_addlightsource,
 									&mut ev_updatelighting,
+									None,
 								);
 								set_tile(
 									&mut commands,
@@ -325,6 +338,7 @@ fn flow_liquid_tile(
 									&mut ev_updatetile,
 									&mut ev_addlightsource,
 									&mut ev_updatelighting,
+									None,
 								);
 								continue 'outer;
 							}
@@ -347,6 +361,7 @@ fn flow_liquid_tile(
 											&mut ev_updatetile,
 											&mut ev_addlightsource,
 											&mut ev_updatelighting,
+											None,
 										);
 										set_tile(
 											&mut commands,
@@ -357,6 +372,7 @@ fn flow_liquid_tile(
 											&mut ev_updatetile,
 											&mut ev_addlightsource,
 											&mut ev_updatelighting,
+											None,
 										);
 									}
 									LiquidInteraction::Vaporized => {
@@ -369,6 +385,7 @@ fn flow_liquid_tile(
 											&mut ev_updatetile,
 											&mut ev_addlightsource,
 											&mut ev_updatelighting,
+											None,
 										);
 									}
 									LiquidInteraction::Float => {
@@ -386,6 +403,7 @@ fn flow_liquid_tile(
 												&mut ev_updatetile,
 												&mut ev_addlightsource,
 												&mut ev_updatelighting,
+												None,
 											);
 										}
 									}
@@ -399,6 +417,7 @@ fn flow_liquid_tile(
 											&mut ev_updatetile,
 											&mut ev_addlightsource,
 											&mut ev_updatelighting,
+											None,
 										);
 										set_tile(
 											&mut commands,
@@ -409,6 +428,7 @@ fn flow_liquid_tile(
 											&mut ev_updatetile,
 											&mut ev_addlightsource,
 											&mut ev_updatelighting,
+											None,
 										);
 									}
 								}
@@ -534,6 +554,7 @@ fn flow_liquid_tile(
 							&mut ev_updatetile,
 							&mut ev_addlightsource,
 							&mut ev_updatelighting,
+							None,
 						);
 					}
 				}
@@ -547,6 +568,7 @@ fn flow_liquid_tile(
 						&mut ev_updatetile,
 						&mut ev_addlightsource,
 						&mut ev_updatelighting,
+						None,
 					);
 				}
 				_ => (),

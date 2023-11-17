@@ -37,6 +37,7 @@ pub fn set_tile(
 	update_tile_event: &mut EventWriter<UpdateTileEvent>,
 	event_add_lightsource: &mut EventWriter<AddLightSourceEvent>,
 	event_update_lighting: &mut EventWriter<LightingUpdateEvent>,
+	texture_index: Option<i32>,
 ) {
 	let _ = set_tile_result(
 		commands,
@@ -47,6 +48,7 @@ pub fn set_tile(
 		update_tile_event,
 		event_add_lightsource,
 		event_update_lighting,
+		texture_index,
 	);
 }
 
@@ -59,6 +61,7 @@ pub fn set_tile_result(
 	update_tile_event: &mut EventWriter<UpdateTileEvent>,
 	event_add_lightsource: &mut EventWriter<AddLightSourceEvent>,
 	event_update_lighting: &mut EventWriter<LightingUpdateEvent>,
+	texture_index: Option<i32>,
 ) -> Result<MapTile, ()> {
 	let tile_coord = coord.as_tile_coord();
 	let chunklocal_coord = coord.as_chunklocal_coord();
@@ -77,64 +80,16 @@ pub fn set_tile_result(
 
 	if !tile_type.is_visible() {
 		commands.entity(maptile.tile_entity).remove::<Tile>();
-		commands
-			.entity(maptile.sprite_entity)
-			.insert((SpriteBundle {
-				texture: sprites.tile_outlines.get(39).unwrap().clone(), // use no outline sprite for tile sprite
-				transform: Transform {
-					translation: Vec3::ZERO,
-					..Default::default()
-				},
-				..Default::default()
-			},));
-	} else if !tile_type.is_liquid() {
-		let texture_handle = sprites.tiles.get(&tile_type.get_sprite_dir_name()).unwrap();
-
-		let mut i = xorshift_from_coord(tile_coord);
-
-		let (rot, scale) = if tile_type.morph_sprite() {
-			(
-				(i % 4) as f32 * std::f32::consts::FRAC_PI_2,
-				match (i / 10) % 3 {
-					1 => (1.0, -1.0), // flip vertical
-					2 => (-1.0, 1.0), // flip horizontal
-					_ => (1.0, 1.0),  // no flip
-				},
-			)
-		} else {
-			(0.0, (1.0, 1.0))
-		};
-		i = i.abs() % texture_handle.len() as i32;
-
-		commands.entity(maptile.sprite_entity).insert(SpriteBundle {
-			texture: texture_handle.get(i as usize).unwrap().clone(),
-			transform: Transform {
-				rotation: Quat::from_rotation_z(rot),
-				scale: Vec3::new(scale.0, scale.1, 1.0),
-				translation: Vec3::ZERO,
-			},
-			..Default::default()
-		});
-	} else {
-		let texture_handle = sprites.tiles.get(&tile_type.get_sprite_dir_name()).unwrap();
-		let i = if tile_type.liquid().sprite_override {
-			texture_handle.len() - 1
-		} else {
-			((texture_handle.len() as f32 - 1.0)
-				* (tile_type.liquid().level as f32 / u8::MAX as f32)) as usize
-		};
-		let t = texture_handle.get(i).expect(
-			&format!(
-				"Missing liquid tile texture: {} index {}",
-				tile_type.get_name(),
-				i,
-			)[..],
-		);
-		commands.entity(maptile.sprite_entity).insert(SpriteBundle {
-			texture: t.clone(),
-			..Default::default()
-		});
 	}
+
+	commands
+		.entity(maptile.sprite_entity)
+		.insert(create_tile_spritebundle(
+			tile_type,
+			tile_coord,
+			sprites,
+			texture_index,
+		));
 
 	let mut cmds = commands.entity(maptile.tile_entity);
 
@@ -190,4 +145,72 @@ pub fn set_tile_result(
 	}
 
 	Ok(new_maptile)
+}
+
+pub fn create_tile_spritebundle(
+	tile_type: TileType,
+	coord: Coordinate,
+	sprites: &Sprites,
+	texture_index: Option<i32>,
+) -> SpriteBundle {
+	let tile_coord = coord.as_tile_coord();
+
+	if !tile_type.is_visible() {
+		SpriteBundle {
+			texture: sprites.tile_outlines.get(39).unwrap().clone(), // use no outline sprite for tile sprite
+			transform: Transform {
+				translation: Vec3::ZERO,
+				..Default::default()
+			},
+			..Default::default()
+		}
+	} else if !tile_type.is_liquid() {
+		let texture_handle = sprites.tiles.get(&tile_type.get_sprite_dir_name()).unwrap();
+
+		let mut i = xorshift_from_coord(tile_coord);
+
+		let (rot, scale) = if tile_type.morph_sprite() {
+			(
+				(i % 4) as f32 * std::f32::consts::FRAC_PI_2,
+				match (i / 10) % 3 {
+					1 => (1.0, -1.0), // flip vertical
+					2 => (-1.0, 1.0), // flip horizontal
+					_ => (1.0, 1.0),  // no flip
+				},
+			)
+		} else {
+			(0.0, (1.0, 1.0))
+		};
+
+		i = texture_index.unwrap_or(i).abs() % texture_handle.len() as i32;
+
+		SpriteBundle {
+			texture: texture_handle.get(i as usize).unwrap().clone(),
+			transform: Transform {
+				rotation: Quat::from_rotation_z(rot),
+				scale: Vec3::new(scale.0, scale.1, 1.0),
+				translation: Vec3::ZERO,
+			},
+			..Default::default()
+		}
+	} else {
+		let texture_handle = sprites.tiles.get(&tile_type.get_sprite_dir_name()).unwrap();
+		let i = if tile_type.liquid().sprite_override {
+			texture_handle.len() - 1
+		} else {
+			((texture_handle.len() as f32 - 1.0)
+				* (tile_type.liquid().level as f32 / u8::MAX as f32)) as usize
+		};
+		let t = texture_handle.get(i).expect(
+			&format!(
+				"Missing liquid tile texture: {} index {}",
+				tile_type.get_name(),
+				i,
+			)[..],
+		);
+		SpriteBundle {
+			texture: t.clone(),
+			..Default::default()
+		}
+	}
 }
