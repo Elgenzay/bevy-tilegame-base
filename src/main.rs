@@ -15,7 +15,7 @@ mod tiletypes;
 mod worldgen;
 
 use bevy::prelude::*;
-use bevy::window::WindowResolution;
+use bevy::window::{WindowResolution, PresentMode};
 use bevy::{math::Vec3, window::Cursor};
 use devtools::DevTools;
 use grid::Grid;
@@ -79,6 +79,7 @@ fn main() {
 							WINDOW_DEFAULT_WIDTH,
 							WINDOW_DEFAULT_HEIGHT,
 						),
+						present_mode: PresentMode::AutoNoVsync,
 						..default()
 					}),
 					..default()

@@ -14,14 +14,17 @@ use bevy::{
 
 use crate::{
 	grid::{Coordinate, CreateTileEvent, DestroyTileEvent, Map},
-	light::Emitter,
+	//light::Emitter,
 	playerphysics::Position,
 	players::Player,
 	sprites::Sprites,
 	startup,
 	tilephysics::UpdateTileEvent,
 	tiletypes::{Liquid, TileType},
-	MainCamera, UIWrapper, WorldCursor, CAMERA_PROJECTION_SCALE,
+	MainCamera,
+	UIWrapper,
+	WorldCursor,
+	CAMERA_PROJECTION_SCALE,
 };
 
 pub struct DevTools;
@@ -125,11 +128,11 @@ fn place_tiles(
 				None,
 			));
 		} else if kb_input.just_pressed(KeyCode::Key8) {
-			ev_createtile.send(CreateTileEvent::new(
-				world_coord,
-				TileType::Lantern(Emitter::default()),
-				None,
-			));
+			//ev_createtile.send(CreateTileEvent::new(
+			//	world_coord,
+			//	TileType::Lantern(Emitter::default()),
+			//	None,
+			//));
 		}
 		let size = if m_input.pressed(MouseButton::Left) {
 			1
