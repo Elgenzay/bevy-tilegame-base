@@ -1,17 +1,3 @@
-use bevy::{
-	input::mouse::MouseWheel,
-	prelude::{
-		apply_deferred, App, BuildChildren, Color, Commands, Component, Entity, Event, EventReader,
-		EventWriter, Input, IntoSystemConfigs, KeyCode, MouseButton, OrthographicProjection,
-		Plugin, Query, Res, ResMut, Resource, Startup, TextBundle, Transform, Update, Vec2, Vec3,
-		With,
-	},
-	sprite::SpriteBundle,
-	text::{Text, TextAlignment, TextStyle},
-	time::Time,
-	ui::{PositionType, Style, Val},
-};
-
 use crate::{
 	grid::{Coordinate, CreateTileEvent, DestroyTileEvent, Map},
 	//light::Emitter,
@@ -25,6 +11,19 @@ use crate::{
 	UIWrapper,
 	WorldCursor,
 	CAMERA_PROJECTION_SCALE,
+};
+use bevy::{
+	input::mouse::MouseWheel,
+	prelude::{
+		apply_deferred, App, BuildChildren, ButtonInput, Color, Commands, Component, Entity, Event,
+		EventReader, EventWriter, IntoSystemConfigs, KeyCode, MouseButton, OrthographicProjection,
+		Plugin, Query, Res, ResMut, Resource, Startup, TextBundle, Transform, Update, Vec2, Vec3,
+		With,
+	},
+	sprite::SpriteBundle,
+	text::{JustifyText, Text, TextStyle},
+	time::Time,
+	ui::{PositionType, Style, Val},
 };
 
 pub struct DevTools;
@@ -59,7 +58,7 @@ struct DebugStates {
 	debug_ui_enabled: bool,
 }
 
-fn debug_input(kb_input: Res<Input<KeyCode>>, mut ev_toggleui: EventWriter<ToggleDebugUI>) {
+fn debug_input(kb_input: Res<ButtonInput<KeyCode>>, mut ev_toggleui: EventWriter<ToggleDebugUI>) {
 	if kb_input.just_pressed(KeyCode::F1) {
 		ev_toggleui.send(ToggleDebugUI());
 	}
@@ -73,6 +72,7 @@ fn toggle_debug_ui_event(
 ) {
 	for _ in ev.read() {
 		states.debug_ui_enabled = !states.debug_ui_enabled;
+
 		if !states.debug_ui_enabled {
 			if let Ok(mut t) = q_info.get_single_mut() {
 				*t = Text::from_section(
@@ -92,48 +92,49 @@ fn place_tiles(
 	q_cursor: Query<&Transform, With<WorldCursor>>,
 	mut ev_destroytile: EventWriter<DestroyTileEvent>,
 	mut ev_createtile: EventWriter<CreateTileEvent>,
-	kb_input: Res<Input<KeyCode>>,
-	m_input: Res<Input<MouseButton>>,
+	kb_input: Res<ButtonInput<KeyCode>>,
+	m_input: Res<ButtonInput<MouseButton>>,
 	mut q_camera: Query<&mut OrthographicProjection, With<MainCamera>>,
 ) {
 	if let Ok(cursor_pos) = q_cursor.get_single() {
 		let world_coord = Coordinate::world_coord_from_vec2(cursor_pos.translation.truncate());
 
-		if kb_input.pressed(KeyCode::Key0) {
+		if kb_input.pressed(KeyCode::Digit0) {
 			ev_createtile.send(CreateTileEvent::new(world_coord, TileType::Empty, None));
-		} else if kb_input.pressed(KeyCode::Key1) {
+		} else if kb_input.pressed(KeyCode::Digit1) {
 			ev_createtile.send(CreateTileEvent::new(world_coord, TileType::Sand, None));
-		} else if kb_input.pressed(KeyCode::Key2) {
+		} else if kb_input.pressed(KeyCode::Digit2) {
 			ev_createtile.send(CreateTileEvent::new(world_coord, TileType::Dirt, None));
-		} else if kb_input.pressed(KeyCode::Key3) {
+		} else if kb_input.pressed(KeyCode::Digit3) {
 			ev_createtile.send(CreateTileEvent::new(world_coord, TileType::Gravel, None));
-		} else if kb_input.pressed(KeyCode::Key4) {
+		} else if kb_input.pressed(KeyCode::Digit4) {
 			ev_createtile.send(CreateTileEvent::new(world_coord, TileType::Moss, None));
-		} else if kb_input.pressed(KeyCode::Key5) {
+		} else if kb_input.pressed(KeyCode::Digit5) {
 			ev_createtile.send(CreateTileEvent::new(
 				world_coord,
 				TileType::Water(Liquid::default()),
 				None,
 			));
-		} else if kb_input.pressed(KeyCode::Key6) {
+		} else if kb_input.pressed(KeyCode::Digit6) {
 			ev_createtile.send(CreateTileEvent::new(
 				world_coord,
 				TileType::Magma(Liquid::default()),
 				None,
 			));
-		} else if kb_input.pressed(KeyCode::Key7) {
+		} else if kb_input.pressed(KeyCode::Digit7) {
 			ev_createtile.send(CreateTileEvent::new(
 				world_coord,
 				TileType::Oil(Liquid::default()),
 				None,
 			));
-		} else if kb_input.just_pressed(KeyCode::Key8) {
+		} else if kb_input.just_pressed(KeyCode::Digit8) {
 			//ev_createtile.send(CreateTileEvent::new(
 			//	world_coord,
 			//	TileType::Lantern(Emitter::default()),
 			//	None,
 			//));
 		}
+
 		let size = if m_input.pressed(MouseButton::Left) {
 			1
 		} else if m_input.pressed(MouseButton::Right) {
@@ -141,8 +142,8 @@ fn place_tiles(
 		} else {
 			0
 		};
+
 		if size != 0 {
-			//ev_destroytile.send(DestroyTileEvent(world_coord.as_tile_coord()));
 			for x in -size..=size {
 				for y in -size..=size {
 					ev_destroytile.send(DestroyTileEvent(
@@ -175,6 +176,7 @@ fn camera_zoom(
 					return;
 				}
 			};
+
 			if camera_projection.scale < 0.1 {
 				camera_projection.scale = 0.1;
 			}
@@ -187,9 +189,11 @@ fn setup_devtools(mut commands: Commands, q_wrapper: Query<Entity, With<UIWrappe
 		frame_times: vec![],
 		avg_frame_rate: 0.0,
 	});
+
 	commands.insert_resource(DebugStates {
 		debug_ui_enabled: false,
 	});
+
 	let info = commands
 		.spawn((
 			TextBundle::from_section(
@@ -204,7 +208,7 @@ fn setup_devtools(mut commands: Commands, q_wrapper: Query<Entity, With<UIWrappe
 				left: Val::Px(10.0),
 				..Default::default()
 			})
-			.with_text_alignment(TextAlignment::Left),
+			.with_text_justify(JustifyText::Left),
 			DebugInfo,
 		))
 		.id();
@@ -232,6 +236,7 @@ fn update_info(
 	if !state.debug_ui_enabled {
 		return;
 	}
+
 	let fps = 1.0 / time.delta_seconds();
 	framerate.frame_times.push(fps);
 
@@ -244,11 +249,13 @@ fn update_info(
 	if let Ok(mut t) = q_info.get_single_mut() {
 		let player_pos = {
 			let mut opt = None;
+
 			for p in q_player.iter() {
 				if let Player::Local = p.0 {
 					opt = Some(p.1);
 				}
 			}
+
 			if let Some(t) = opt {
 				t
 			} else {
@@ -256,13 +263,16 @@ fn update_info(
 			}
 		}
 		.0;
+
 		let cursor_pos = if let Ok(v) = q_cursor.get_single() {
 			v.translation.truncate()
 		} else {
 			Vec2::ZERO
 		};
+
 		let cursor_pos = Coordinate::world_coord_from_vec2(cursor_pos);
 		let player_pos = Coordinate::world_coord_from_vec2(player_pos);
+
 		let (
 			ct_name,
 			ct_weighted,
@@ -394,6 +404,7 @@ fn tileupdate(
 	if !state.debug_ui_enabled {
 		return;
 	}
+
 	for ev in ev_update.read() {
 		let world_coord = ev.0.as_world_coord();
 		commands.spawn((

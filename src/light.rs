@@ -1,3 +1,7 @@
+use crate::{
+	grid::{Coordinate, Map, MapTile},
+	TILE_SIZE,
+};
 use bevy::{
 	prelude::{
 		App, Color, Commands, Event, EventReader, EventWriter, Plugin, ResMut, Resource, Startup,
@@ -5,11 +9,6 @@ use bevy::{
 	},
 	sprite::{Sprite, SpriteBundle},
 	utils::{HashMap, HashSet},
-};
-
-use crate::{
-	grid::{Coordinate, Map, MapTile},
-	TILE_SIZE,
 };
 
 pub struct Light;
@@ -68,15 +67,18 @@ fn lighting_update(
 	let mut new_light_levels: HashMap<(i32, i32), u8> = HashMap::new();
 	let mut c_vec = vec![coord];
 	let mut updated_tiles = HashSet::new();
+
 	while let Some(c) = c_vec.pop() {
 		if lightsources.0.is_empty() {
 			break;
 		}
+
 		for lightsource in lightsources.0.iter_mut() {
 			let new_set = &HashSet::new();
 			let rays = checked_rays.get(lightsource.0).unwrap_or(new_set);
 			let update = lightsource.1.update_light_tile(map, c, rays);
 			checked_rays.insert(*lightsource.0, rays.union(&update.1).cloned().collect());
+
 			for (k, v) in update.0.iter() {
 				if let Some(prev) = new_light_levels.get(k) {
 					new_light_levels.insert(
@@ -90,7 +92,9 @@ fn lighting_update(
 				} else {
 					new_light_levels.insert(*k, v.light_level);
 				};
+
 				let new_c = Coordinate::Tile { x: k.0, y: k.1 };
+
 				if new_c != c && !updated_tiles.contains(&(new_c.x_i32(), new_c.y_i32())) {
 					updated_tiles.insert((new_c.x_i32(), new_c.y_i32()));
 					c_vec.push(new_c);
@@ -101,6 +105,7 @@ fn lighting_update(
 
 	for (k, lvl) in new_light_levels.iter() {
 		let coord = Coordinate::Tile { x: k.0, y: k.1 };
+
 		if let Some(t) = map.get_tile(coord) {
 			if t.light_level == *lvl {
 				continue;
@@ -115,7 +120,8 @@ fn lighting_update(
 
 		if let Some(t) = map.get_tile(coord) {
 			if let Some(mut e) = commands.get_entity(t.light_entity) {
-				let color = Color::rgba_u8(0, 0, 0, u8::MAX - lvl);
+				let color = Color::srgba_u8(0, 0, 0, u8::MAX - lvl);
+
 				e.insert(SpriteBundle {
 					sprite: Sprite {
 						color,
@@ -143,14 +149,17 @@ impl LightSources {
 	) {
 		println!("lightsource added");
 		let coord = maptile.tile_coord;
+
 		let emitter = if let Ok(e) = maptile.tile_type.get_emitter() {
 			e
 		} else {
 			return;
 		};
+
 		let r_i32 = emitter.radius as i32;
 		let mut ray_index: u16 = 0;
 		let mut rays = HashMap::new();
+
 		for x in -r_i32..=r_i32 {
 			for y in -r_i32..=r_i32 {
 				if x.abs() != r_i32 && y.abs() != r_i32 {
@@ -165,6 +174,7 @@ impl LightSources {
 				rays.insert(ray_index, ray);
 			}
 		}
+
 		println!("radius: {}", emitter.radius);
 		println!("rays: {}", rays.len());
 
@@ -183,6 +193,7 @@ struct LightSource {
 impl LightSource {
 	fn new(emitter: Emitter, rays: HashMap<u16, Vec<Coordinate>>) -> Self {
 		let mut tiles: HashMap<(i32, i32), LightTile> = HashMap::new();
+
 		for ray in rays.iter() {
 			for c in ray.1 {
 				let key = &(c.x_i32(), c.y_i32());
@@ -207,6 +218,7 @@ impl LightSource {
 				}
 			}
 		}
+
 		Self {
 			emitter,
 			rays,
@@ -233,7 +245,7 @@ impl LightSource {
 					#[allow(unused_mut)] //todo
 					let mut obstructed = false;
 					//let mut passed_target = false;
-					let center = r.get(0).unwrap();
+					let center = r.first().unwrap();
 					for c in r {
 						if let Some(maptile) = map.get_tile(*c) {
 							//if *c == coord {

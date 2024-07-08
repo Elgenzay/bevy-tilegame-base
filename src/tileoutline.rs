@@ -24,6 +24,7 @@ impl ConnectedNeighbors {
 	}
 
 	#[allow(clippy::if_same_then_else)]
+	#[allow(clippy::needless_else)]
 	pub fn get_outline_id(self) -> usize {
 		if self.top {
 			if self.bottom {

@@ -1,5 +1,24 @@
 #![allow(clippy::too_many_arguments)]
 
+use bevy::{
+	app::{App, Startup, Update},
+	math::UVec2,
+	prelude::*,
+	time::Timer,
+	window::{PresentMode, Window, WindowPlugin, WindowResolution},
+	DefaultPlugins,
+	{math::Vec3, window::Cursor},
+};
+use devtools::DevTools;
+use grid::Grid;
+use inputs::Inputs;
+use light::Light;
+use playerphysics::{PlayerPhysics, Position, Velocity};
+use players::{Player, PlayerBundle, Players};
+use settings::Settings;
+use sprites::{setup_sprites, Sprites};
+use tilephysics::TilePhysics;
+
 mod devtools;
 mod grid;
 mod inputs;
@@ -13,19 +32,6 @@ mod tilephysics;
 mod tiles;
 mod tiletypes;
 mod worldgen;
-
-use bevy::prelude::*;
-use bevy::window::{WindowResolution, PresentMode};
-use bevy::{math::Vec3, window::Cursor};
-use devtools::DevTools;
-use grid::Grid;
-use inputs::Inputs;
-use light::Light;
-use playerphysics::{PlayerPhysics, Position, Velocity};
-use players::{Player, PlayerBundle, Players};
-use settings::Settings;
-use sprites::{setup_sprites, Sprites, SpritesPlugin};
-use tilephysics::TilePhysics;
 
 const WINDOW_DEFAULT_WIDTH: f32 = 1280.0;
 const WINDOW_DEFAULT_HEIGHT: f32 = 720.0;
@@ -90,7 +96,6 @@ fn main() {
 			PlayerPhysics,
 			TilePhysics,
 			Players,
-			SpritesPlugin,
 			Light,
 			DevTools,
 		))
@@ -100,7 +105,7 @@ fn main() {
 		.insert_resource(Settings {
 			..Default::default()
 		})
-		.insert_resource(ClearColor(Color::rgb(0.30, 0.20, 0.10)))
+		.insert_resource(ClearColor(Color::srgb(0.30, 0.20, 0.10)))
 		.insert_resource(TickTimer(
 			Timer::from_seconds(1.0 / TICKRATE, TimerMode::Repeating),
 			0,

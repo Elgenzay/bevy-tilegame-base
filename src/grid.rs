@@ -13,9 +13,8 @@ use bevy::{
 	prelude::{
 		App, BuildChildren, Children, Commands, Component, Deref, DerefMut, DespawnRecursiveExt,
 		Entity, Event, EventReader, EventWriter, IVec2, IntoSystemConfigs, Plugin, Query, Res,
-		ResMut, Resource, Transform, Update, Vec2, Vec3, VisibilityBundle, With,
+		ResMut, Resource, Transform, TransformBundle, Update, Vec2, Vec3, VisibilityBundle, With,
 	},
-	transform::TransformBundle,
 	utils::hashbrown::HashMap,
 };
 use bresenham::Bresenham;
@@ -227,6 +226,7 @@ impl Coordinate {
 	pub fn as_chunk_coord(&self) -> Coordinate {
 		let chunksize_x_f32 = CHUNK_SIZE.0 as f32;
 		let chunksize_y_f32 = CHUNK_SIZE.1 as f32;
+
 		match self {
 			Coordinate::Tile { x, y } => Coordinate::Chunk {
 				x: (*x as f32 / chunksize_x_f32).floor() as i32,
@@ -250,6 +250,7 @@ impl Coordinate {
 		let tile_coord = self.as_tile_coord();
 		let chunk_size_x_i32 = CHUNK_SIZE.0 as i32;
 		let chunk_size_y_i32 = CHUNK_SIZE.1 as i32;
+
 		let x = match tile_coord.x_i32().checked_rem(chunk_size_x_i32) {
 			Some(v) => {
 				if v < 0 {
@@ -260,6 +261,7 @@ impl Coordinate {
 			}
 			None => 0,
 		};
+
 		let y = match tile_coord.y_i32().checked_rem(chunk_size_y_i32) {
 			Some(v) => {
 				if v < 0 {
@@ -270,6 +272,7 @@ impl Coordinate {
 			}
 			None => 0,
 		};
+
 		Self::ChunkLocal {
 			x: x as u8,
 			y: y as u8,
@@ -296,6 +299,7 @@ impl Coordinate {
 
 	pub fn raycast_to(&self, other_tile_coord: Coordinate) -> Vec<Coordinate> {
 		let mut maptiles = vec![];
+
 		for (x, y) in Bresenham::new(
 			(self.x_isize(), self.y_isize()),
 			(other_tile_coord.x_isize(), other_tile_coord.y_isize()),
@@ -305,6 +309,7 @@ impl Coordinate {
 				y: y as i32,
 			});
 		}
+
 		maptiles
 	}
 }
@@ -361,11 +366,14 @@ pub fn spawn_chunk(
 			e.despawn_recursive();
 		}
 	}
+
 	let mut tiles = HashMap::new();
+
 	for x in 0..CHUNK_SIZE.0 {
 		for y in 0..CHUNK_SIZE.1 {
 			let x_f32 = x as f32;
 			let y_f32 = y as f32;
+
 			let tile = commands
 				.spawn((
 					VisibilityBundle {
@@ -395,14 +403,15 @@ pub fn spawn_chunk(
 					),
 				))
 				.id();
-			let outline = commands.spawn_empty().id();
 
+			let outline = commands.spawn_empty().id();
 			let sprite = commands.spawn_empty().id();
 			let light = commands.spawn_empty().id();
 			commands.entity(tile).add_child(outline);
 			commands.entity(tile).add_child(sprite);
 			commands.entity(tile).add_child(light);
 			commands.entity(chunk_entity).add_child(tile);
+
 			tiles.insert(
 				(x, y),
 				MapTile {
@@ -433,6 +442,7 @@ pub fn spawn_chunk(
 			let tile_x = (chunk_pos.x * CHUNK_SIZE.0 as i32) + x as i32;
 			let tile_y = (chunk_pos.y * CHUNK_SIZE.1 as i32) + y as i32;
 			let tile_type = tiletype_at(tile_x, tile_y);
+
 			if set_tile_result(
 				commands,
 				Coordinate::Tile {
@@ -459,6 +469,7 @@ pub fn spawn_chunk(
 			let chunk_coord = Coordinate::Chunk { x, y }.moved(&chunk_pos.as_vec2());
 			let cs_offset_x = CHUNK_SIZE.0 - 1;
 			let cs_offset_y = CHUNK_SIZE.1 - 1;
+
 			let (x_min, x_max, y_min, y_max) = match x {
 				-1 => match y {
 					-1 => (cs_offset_x, cs_offset_x, cs_offset_y, cs_offset_y), // bottom left
@@ -480,6 +491,7 @@ pub fn spawn_chunk(
 				},
 				_ => panic!(),
 			};
+
 			for x in x_min..=x_max {
 				for y in y_min..=y_max {
 					ev_update.send(UpdateTileEvent(Coordinate::Tile {
@@ -511,14 +523,17 @@ pub fn region_collides(
 		if !regions_overlap(chunk_region, region) {
 			continue;
 		}
+
 		for &child in chunk_children.iter() {
 			let tile_region = match q_colliders.get(child) {
 				Ok(v) => v,
 				Err(_) => continue,
 			};
+
 			if !regions_overlap(tile_region, region) {
 				continue;
 			}
+
 			return true;
 		}
 	}
@@ -586,6 +601,7 @@ pub fn render_chunks(
 					despawn_chunk(&mut commands, chunk.0, &mut map);
 				}
 			}
+
 			//spawn
 			let current_chunk_coord =
 				Coordinate::world_coord_from_vec2(position.0).as_chunk_coord();
@@ -632,6 +648,7 @@ pub fn create_tile_event(
 				continue;
 			}
 		}
+
 		set_tile(
 			&mut commands,
 			ev.coord,
@@ -648,6 +665,7 @@ pub fn create_tile_event(
 
 pub fn xorshift_from_coord(coord: Coordinate) -> i32 {
 	let mut i = coord.x_i32() * coord.y_i32();
+
 	if i == 0 {
 		i = coord.x_i32() + coord.y_i32();
 	}

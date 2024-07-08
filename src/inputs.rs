@@ -5,8 +5,8 @@ use crate::{
 };
 use bevy::{
 	prelude::{
-		App, Camera, GlobalTransform, Input, KeyCode, Plugin, Query, Res, Transform, Update, With,
-		Without,
+		App, ButtonInput, Camera, GlobalTransform, KeyCode, Plugin, Query, Res, Transform, Update,
+		With, Without,
 	},
 	ui::{Style, Val},
 	window::Window,
@@ -30,15 +30,15 @@ impl Default for KeyBinds {
 	fn default() -> Self {
 		Self {
 			move_left: KeyBind {
-				primary: Some(KeyCode::A),
-				secondary: Some(KeyCode::Left),
+				primary: Some(KeyCode::KeyA),
+				secondary: Some(KeyCode::ArrowLeft),
 			},
 			move_right: KeyBind {
-				primary: Some(KeyCode::D),
-				secondary: Some(KeyCode::Right),
+				primary: Some(KeyCode::KeyD),
+				secondary: Some(KeyCode::ArrowRight),
 			},
 			jump: KeyBind {
-				primary: Some(KeyCode::W),
+				primary: Some(KeyCode::KeyW),
 				secondary: Some(KeyCode::Space),
 			},
 		}
@@ -51,46 +51,52 @@ pub struct KeyBind {
 }
 
 impl KeyBind {
-	pub fn is_pressed(&self, input: &Input<KeyCode>) -> bool {
+	pub fn is_pressed(&self, input: &ButtonInput<KeyCode>) -> bool {
 		if let Some(v) = self.primary {
 			if input.pressed(v) {
 				return true;
 			}
 		}
+
 		if let Some(v) = self.secondary {
 			if input.pressed(v) {
 				return true;
 			}
 		}
+
 		false
 	}
 
-	pub fn just_pressed(&self, input: &Input<KeyCode>) -> bool {
+	pub fn just_pressed(&self, input: &ButtonInput<KeyCode>) -> bool {
 		if let Some(v) = self.primary {
 			if input.just_pressed(v) {
 				return true;
 			}
 		}
+
 		if let Some(v) = self.secondary {
 			if input.just_pressed(v) {
 				return true;
 			}
 		}
+
 		false
 	}
 }
 
 fn keyboard_events_system(
-	input: Res<Input<KeyCode>>,
+	input: Res<ButtonInput<KeyCode>>,
 	settings: Res<Settings>,
 	mut q_player: Query<(&Player, &mut MoveDirection, &mut Jumping)>,
 ) {
 	for (player, mut move_direction, mut jumping) in &mut q_player {
 		if let Player::Local = player {
 			let mut dir = MoveDirection::None;
+
 			if settings.keybinds.move_left.is_pressed(&input) {
 				dir = MoveDirection::Left;
 			}
+
 			if settings.keybinds.move_right.is_pressed(&input) {
 				if let MoveDirection::Left = dir {
 					dir = MoveDirection::None;
@@ -98,12 +104,15 @@ fn keyboard_events_system(
 					dir = MoveDirection::Right;
 				}
 			}
+
 			*move_direction = dir;
+
 			if settings.hold_to_keep_jumping {
 				jumping.0 = settings.keybinds.jump.is_pressed(&input);
 			} else {
 				jumping.0 = settings.keybinds.jump.just_pressed(&input);
 			}
+
 			return;
 		}
 	}
@@ -114,12 +123,12 @@ fn mouse_events_system(
 	q_camera: Query<(&Camera, &GlobalTransform), With<Camera>>,
 	mut q_worldcursor: Query<&mut Transform, With<WorldCursor>>,
 	mut q_screencursor: Query<&mut Style, (With<ScreenCursor>, Without<WorldCursor>)>,
-	//input: Res<Input<MouseButton>>,
 ) {
 	let (camera, camera_transform) = match q_camera.get_single() {
 		Ok(v) => v,
 		Err(_) => return,
 	};
+
 	let wnd = if let Ok(v) = wnds.get_single() {
 		v
 	} else {

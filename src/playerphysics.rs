@@ -54,10 +54,13 @@ fn motion_tween(mut q_objects: Query<(&mut Transform, &Position)>) {
 		if transform.translation.truncate() == position.0 {
 			continue;
 		}
+
 		let pos_vec3 = position.0.extend(0.0);
+
 		if transform.translation.distance(pos_vec3) < 1.0 {
 			transform.translation = pos_vec3;
 		}
+
 		transform.translation = transform
 			.translation
 			.lerp(position.0.extend(transform.translation.z), 0.2);
@@ -73,6 +76,7 @@ fn apply_velocity(
 	for (mut player_position, mut player_velocity, mut on_ground) in &mut player_query {
 		let player_size_halved_x = PLAYER_SIZE.x as f32 * 0.5;
 		let player_size_halved_y = PLAYER_SIZE.y as f32 * 0.5;
+
 		let current_player_region = Region::from_size(
 			&Vec2::new(
 				player_position.0.x - player_size_halved_x,
@@ -80,6 +84,7 @@ fn apply_velocity(
 			),
 			&PLAYER_SIZE.as_vec2(),
 		);
+
 		if region_collides(&current_player_region, &q_colliders, &q_chunks) {
 			on_ground.0 = false;
 			player_velocity.0 = Vec2::ZERO;
@@ -116,12 +121,15 @@ fn apply_velocity(
 				//
 			}
 		}
+
 		if player_velocity.x == 0.0 && player_velocity.y == 0.0 {
 			continue;
 		}
+
 		let delta_x = player_velocity.x * time.delta_seconds();
 		let delta_y = player_velocity.y * time.delta_seconds();
 		let new_pos = Vec2::new(player_position.0.x + delta_x, player_position.0.y + delta_y);
+
 		let new_player_region = Region::from_size(
 			&Vec2::new(
 				new_pos.x - player_size_halved_x,
@@ -129,6 +137,7 @@ fn apply_velocity(
 			),
 			&PLAYER_SIZE.as_vec2(),
 		);
+
 		if !region_collides(&new_player_region, &q_colliders, &q_chunks) {
 			player_position.0 = new_pos;
 		} else if !region_collides(
@@ -141,11 +150,13 @@ fn apply_velocity(
 			player_position.0.x = new_pos.x;
 		} else if player_velocity.x != 0.0 {
 			let step_up_region = new_player_region.moved(&Vec2::new(0.0, TILE_SIZE.y as f32));
+
 			if on_ground.0 && !region_collides(&step_up_region, &q_colliders, &q_chunks) {
 				player_position.0 = Vec2::new(new_pos.x, new_pos.y + TILE_SIZE.y as f32);
 			} else {
 				player_velocity.x = 0.0;
 				let new_player_region = current_player_region.moved(&Vec2::new(0.0, delta_y));
+
 				if !region_collides(&new_player_region, &q_colliders, &q_chunks) {
 					//stepping up
 					player_position.0.y += delta_y;
@@ -176,6 +187,7 @@ fn apply_gravity(
 			),
 			&PLAYER_SIZE.as_vec2(),
 		);
+
 		if region_collides(&current_player_region, &q_colliders, &q_chunks) {
 			on_ground.0 = false;
 			continue;
@@ -189,15 +201,20 @@ fn apply_gravity(
 			&PLAYER_SIZE.as_vec2(),
 		)
 		.moved(&Vec2::new(0.0, -1.0));
+
 		let new_on_ground = region_collides(&floor_check, &q_colliders, &q_chunks);
+
 		if velocity.y <= 0.0 && new_on_ground {
 			//standing
 			on_ground.0 = true;
+
 			if velocity.y < 0.0 {
 				velocity.y = 0.0;
 			}
+
 			continue;
 		}
+
 		if !new_on_ground && on_ground.0 {
 			//just began falling
 			if region_collides(
@@ -211,11 +228,14 @@ fn apply_gravity(
 				continue;
 			}
 		}
+
 		//falling
 		on_ground.0 = false;
+
 		if velocity.y < -TERMINAL_VELOCITY {
 			continue;
 		}
+
 		velocity.y -= gravity.0 * time.delta_seconds();
 	}
 }

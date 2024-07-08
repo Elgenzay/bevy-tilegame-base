@@ -1,8 +1,3 @@
-use bevy::{
-	prelude::{Commands, Component, EventWriter, Quat, Transform, Vec2, Vec3},
-	sprite::SpriteBundle,
-};
-
 use crate::{
 	grid::{xorshift_from_coord, Coordinate, Map, MapTile},
 	light::{AddLightSourceEvent, LightingUpdateEvent},
@@ -10,6 +5,10 @@ use crate::{
 	sprites::Sprites,
 	tilephysics::{FlowingTile, UpdateTileEvent},
 	tiletypes::TileType,
+};
+use bevy::{
+	prelude::{Commands, Component, EventWriter, Quat, Transform, Vec2, Vec3},
+	sprite::SpriteBundle,
 };
 
 #[derive(Component)]
@@ -131,16 +130,20 @@ pub fn set_tile_result(
 		.unwrap()
 		.tiles
 		.get_mut(&(chunklocal_coord.x_u8(), chunklocal_coord.y_u8()));
+
 	if let Some(v) = maptile_mut {
 		if v.tile_type.is_emitter() {
 			// todo remove lightsource
 		}
+
 		if new_maptile.tile_type.is_emitter() {
 			event_add_lightsource.send(AddLightSourceEvent(new_maptile));
 		}
+
 		if v.tile_type.is_opaque() != new_maptile.tile_type.is_opaque() {
 			event_update_lighting.send(LightingUpdateEvent(v.tile_coord));
 		}
+
 		*v = new_maptile;
 	}
 
@@ -195,19 +198,22 @@ pub fn create_tile_spritebundle(
 		}
 	} else {
 		let texture_handle = sprites.tiles.get(&tile_type.get_sprite_dir_name()).unwrap();
+
 		let i = if tile_type.liquid().sprite_override {
 			texture_handle.len() - 1
 		} else {
 			((texture_handle.len() as f32 - 1.0)
 				* (tile_type.liquid().level as f32 / u8::MAX as f32)) as usize
 		};
-		let t = texture_handle.get(i).expect(
-			&format!(
+
+		let t = texture_handle.get(i).unwrap_or_else(|| {
+			panic!(
 				"Missing liquid tile texture: {} index {}",
 				tile_type.get_name(),
-				i,
-			)[..],
-		);
+				i
+			)
+		});
+
 		SpriteBundle {
 			texture: t.clone(),
 			..Default::default()
