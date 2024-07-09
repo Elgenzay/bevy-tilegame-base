@@ -1,7 +1,8 @@
 use crate::light::Emitter;
-use strum_macros::EnumIter;
+use strum_macros::{Display, EnumIter};
 
-#[derive(Copy, Clone, PartialEq, EnumIter)]
+#[derive(Copy, Clone, PartialEq, EnumIter, Display)]
+#[strum(serialize_all = "snake_case")]
 pub enum TileType {
 	Empty,
 	Gravel,
@@ -15,39 +16,6 @@ pub enum TileType {
 }
 
 impl TileType {
-	pub fn get_name(&self) -> String {
-		match self {
-			TileType::Empty => "Empty",
-			TileType::Gravel => "Gravel",
-			TileType::Moss => "Moss",
-			TileType::Dirt => "Dirt",
-			TileType::Sand => "Sand",
-			TileType::Water(_) => "Water",
-			TileType::Magma(_) => "Magma",
-			TileType::Oil(_) => "Oil",
-			TileType::Lantern(_) => "Lantern",
-		}
-		.to_owned()
-	}
-
-	pub fn get_sprite_dir_name(&self) -> String {
-		match self {
-			TileType::Gravel => "gravel",
-			TileType::Moss => "moss",
-			TileType::Dirt => "dirt",
-			TileType::Sand => "sand",
-			TileType::Water(_) => "water",
-			TileType::Magma(_) => "magma",
-			TileType::Oil(_) => "oil",
-			TileType::Lantern(_) => "lantern",
-			_ => panic!(
-				"get_sprite_dir_name() not implemented for passed tiletype: {}",
-				self.get_name()
-			),
-		}
-		.to_owned()
-	}
-
 	pub fn morph_sprite(&self) -> bool {
 		true
 	}
@@ -96,10 +64,7 @@ impl TileType {
 			TileType::Water(_) => TileType::Water(l),
 			TileType::Magma(_) => TileType::Magma(l),
 			TileType::Oil(_) => TileType::Oil(l),
-			_ => panic!(
-				"with_liquid() not implemented for passed tiletype: {}",
-				self.get_name()
-			),
+			_ => panic!("with_liquid() not implemented for passed tiletype: {self}"),
 		}
 	}
 
@@ -108,10 +73,7 @@ impl TileType {
 			TileType::Water(_) => 10,
 			TileType::Magma(_) => 1,
 			TileType::Oil(_) => 5,
-			_ => panic!(
-				"get_fluidity() not implemented for passed tiletype: {}",
-				self.get_name()
-			),
+			_ => panic!("get_fluidity() not implemented for passed tiletype: {self}",),
 		}
 	}
 
@@ -134,11 +96,7 @@ impl TileType {
 			},
 			_ => (),
 		}
-		panic!(
-			"get_liquid_interaction_with() not implemented: {} -> {}",
-			self.get_name(),
-			other.get_name()
-		);
+		panic!("get_liquid_interaction_with() not implemented: {self} -> {other}");
 	}
 
 	pub fn get_emitter(&self) -> Result<Emitter, ()> {
@@ -156,10 +114,7 @@ impl TileType {
 		if let Ok(l) = self.get_liquid() {
 			l
 		} else {
-			panic!(
-				"liquid() not implemented for passed tiletype: {}",
-				self.get_name()
-			)
+			panic!("liquid() not implemented for passed tiletype: {self}")
 		}
 	}
 

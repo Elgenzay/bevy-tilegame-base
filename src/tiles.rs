@@ -168,7 +168,7 @@ pub fn create_tile_spritebundle(
 			..Default::default()
 		}
 	} else if !tile_type.is_liquid() {
-		let texture_handle = sprites.tiles.get(&tile_type.get_sprite_dir_name()).unwrap();
+		let texture_handle = sprites.tiles.get(&tile_type.to_string()).unwrap();
 
 		let mut i = xorshift_from_coord(tile_coord);
 
@@ -197,7 +197,7 @@ pub fn create_tile_spritebundle(
 			..Default::default()
 		}
 	} else {
-		let texture_handle = sprites.tiles.get(&tile_type.get_sprite_dir_name()).unwrap();
+		let texture_handle = sprites.tiles.get(&tile_type.to_string()).unwrap();
 
 		let i = if tile_type.liquid().sprite_override {
 			texture_handle.len() - 1
@@ -206,13 +206,9 @@ pub fn create_tile_spritebundle(
 				* (tile_type.liquid().level as f32 / u8::MAX as f32)) as usize
 		};
 
-		let t = texture_handle.get(i).unwrap_or_else(|| {
-			panic!(
-				"Missing liquid tile texture: {} index {}",
-				tile_type.get_name(),
-				i
-			)
-		});
+		let t = texture_handle
+			.get(i)
+			.unwrap_or_else(|| panic!("Missing liquid tile texture: {tile_type} index {i}"));
 
 		SpriteBundle {
 			texture: t.clone(),

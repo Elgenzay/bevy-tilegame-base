@@ -16,9 +16,9 @@ pub fn setup_sprites(mut commands: Commands, asset_server: Res<AssetServer>) {
 		}
 
 		let mut images = vec![];
-		let tilename = tile_type.get_sprite_dir_name();
+		let tilename = tile_type.to_string();
 
-		let mut file_names: Vec<String> = read_dir(format!("assets/tiles/{}", tilename))
+		let mut file_names: Vec<String> = read_dir(format!("assets/tiles/{tilename}"))
 			.unwrap()
 			.filter_map(|entry| entry.ok())
 			.filter_map(|entry| entry.file_name().to_str().map(|s| s.to_string()))
@@ -31,15 +31,15 @@ pub fn setup_sprites(mut commands: Commands, asset_server: Res<AssetServer>) {
 		});
 
 		for filename in file_names {
-			images.push(asset_server.load(format!("tiles/{}/{}", tilename, filename)));
+			images.push(asset_server.load(format!("tiles/{tilename}/{filename}")));
 		}
 
 		tiles.insert(tilename, images);
 	}
 	let mut tile_outlines = vec![];
 
-	for x in 1..=47 {
-		tile_outlines.push(asset_server.load(format!("tile_outlines/{}.png", x)));
+	for n in 1..=47 {
+		tile_outlines.push(asset_server.load(format!("tile_outlines/{n}.png")));
 	}
 
 	let mut fonts = HashMap::new();

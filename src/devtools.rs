@@ -285,7 +285,7 @@ fn update_info(
 			ct_outline_id,
 		) = if let Some(t) = map.get_tile(cursor_pos) {
 			(
-				t.tile_type.get_name(),
+				t.tile_type.to_string(),
 				t.tile_type.is_weighted().to_string(),
 				t.tile_type.get_granularity().to_string(),
 				if let Ok(liquid) = t.tile_type.get_liquid() {
