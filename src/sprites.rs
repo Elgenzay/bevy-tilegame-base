@@ -5,11 +5,12 @@ use bevy::{
 	utils::HashMap,
 };
 use std::fs::read_dir;
+use strum::IntoEnumIterator;
 
 pub fn setup_sprites(mut commands: Commands, asset_server: Res<AssetServer>) {
 	let mut tiles = HashMap::new();
 
-	for tile_type in TileType::all() {
+	for tile_type in TileType::iter() {
 		if !tile_type.is_visible() {
 			continue;
 		}

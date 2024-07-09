@@ -10,6 +10,8 @@ license = "MIT-0"
 bevy = "0.14.0"
 noise = "0.8.2"
 bresenham = "0.1.1"
+strum = "0.26.3"
+strum_macros = "0.26.4"
 
 # Enable a small amount of optimization in debug mode
 [profile.dev]

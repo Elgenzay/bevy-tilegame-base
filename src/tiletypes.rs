@@ -1,6 +1,7 @@
 use crate::light::Emitter;
+use strum_macros::EnumIter;
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, EnumIter)]
 pub enum TileType {
 	Empty,
 	Gravel,
@@ -14,20 +15,6 @@ pub enum TileType {
 }
 
 impl TileType {
-	pub fn all() -> Vec<TileType> {
-		vec![
-			TileType::Empty,
-			TileType::Gravel,
-			TileType::Moss,
-			TileType::Dirt,
-			TileType::Sand,
-			TileType::Water(Liquid::default()),
-			TileType::Magma(Liquid::default()),
-			TileType::Oil(Liquid::default()),
-			TileType::Lantern(Emitter::default()),
-		]
-	}
-
 	pub fn get_name(&self) -> String {
 		match self {
 			TileType::Empty => "Empty",
